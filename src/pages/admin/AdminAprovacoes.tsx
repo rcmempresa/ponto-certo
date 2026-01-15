@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, X, Loader2, Calendar, FileText, Filter } from 'lucide-react';
+import { Check, X, Loader2, Calendar, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -7,8 +7,14 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, differenceInDays } from 'date-fns';
+import { format, eachDayOfInterval, isWeekend } from 'date-fns';
 import { pt } from 'date-fns/locale';
+
+// Calculate business days (excluding weekends)
+const countBusinessDays = (start: Date, end: Date): number => {
+  const days = eachDayOfInterval({ start, end });
+  return days.filter(day => !isWeekend(day)).length;
+};
 
 interface FeriasRequest {
   id: string;
@@ -88,6 +94,14 @@ export default function AdminAprovacoes() {
   const handleFeriasAction = async (id: string, action: 'aprovado' | 'rejeitado') => {
     setProcessingId(id);
 
+    // Find the request to get user_id and dates
+    const request = ferias.find(f => f.id === id);
+    if (!request) {
+      setProcessingId(null);
+      return;
+    }
+
+    // Update the status
     const { error } = await supabase
       .from('ferias')
       .update({ status: action })
@@ -99,14 +113,40 @@ export default function AdminAprovacoes() {
         description: 'Não foi possível processar o pedido.',
         variant: 'destructive',
       });
-    } else {
-      toast({
-        title: action === 'aprovado' ? 'Férias aprovadas' : 'Férias rejeitadas',
-        description: 'O colaborador será notificado.',
-      });
-      fetchRequests();
+      setProcessingId(null);
+      return;
     }
 
+    // If approved, deduct from saldo_ferias
+    if (action === 'aprovado') {
+      const businessDays = countBusinessDays(
+        new Date(request.data_inicio),
+        new Date(request.data_fim)
+      );
+
+      // Get current saldo
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('saldo_ferias')
+        .eq('id', request.user_id)
+        .single();
+
+      if (profile) {
+        const newSaldo = Math.max(0, (profile.saldo_ferias || 22) - businessDays);
+        await supabase
+          .from('profiles')
+          .update({ saldo_ferias: newSaldo })
+          .eq('id', request.user_id);
+      }
+    }
+
+    toast({
+      title: action === 'aprovado' ? 'Férias aprovadas' : 'Férias rejeitadas',
+      description: action === 'aprovado' 
+        ? 'Os dias foram descontados do saldo do colaborador.'
+        : 'O colaborador será notificado.',
+    });
+    fetchRequests();
     setProcessingId(null);
   };
 
@@ -203,7 +243,7 @@ export default function AdminAprovacoes() {
               ) : ferias.length > 0 ? (
                 <div className="space-y-4">
                   {ferias.map((item) => {
-                    const days = differenceInDays(new Date(item.data_fim), new Date(item.data_inicio)) + 1;
+                    const days = countBusinessDays(new Date(item.data_inicio), new Date(item.data_fim));
                     return (
                       <div
                         key={item.id}
