@@ -20,6 +20,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { AttendanceCalendar } from '@/components/faltas/AttendanceCalendar';
 
 interface FaltaRecord {
   id: string;
@@ -37,12 +38,18 @@ export default function Faltas() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [calendarKey, setCalendarKey] = useState(0);
   
   const [formData, setFormData] = useState({
     data: '',
     motivo: '',
   });
   const [file, setFile] = useState<File | null>(null);
+
+  const handleJustifyDay = (date: string) => {
+    setFormData({ ...formData, data: date });
+    setDialogOpen(true);
+  };
 
   useEffect(() => {
     if (user) {
@@ -111,6 +118,7 @@ export default function Faltas() {
       setFormData({ data: '', motivo: '' });
       setFile(null);
       fetchFaltas();
+      setCalendarKey((prev) => prev + 1); // Refresh calendar
     }
 
     setSubmitting(false);
@@ -236,10 +244,13 @@ export default function Faltas() {
         </Card>
       </div>
 
+      {/* Attendance Calendar */}
+      <AttendanceCalendar key={calendarKey} onJustifyDay={handleJustifyDay} />
+
       {/* List */}
       <Card className="border-0 shadow-soft">
         <CardHeader>
-          <CardTitle className="text-lg font-medium">Histórico de Faltas</CardTitle>
+          <CardTitle className="text-lg font-medium">Histórico de Justificações</CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
