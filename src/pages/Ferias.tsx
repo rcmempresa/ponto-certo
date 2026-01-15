@@ -34,7 +34,7 @@ interface FeriasRecord {
 }
 
 export default function Ferias() {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const [ferias, setFerias] = useState<FeriasRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +46,7 @@ export default function Ferias() {
   useEffect(() => {
     if (user) {
       fetchFerias();
+      refreshProfile(); // Refresh profile to get updated saldo_ferias
     }
   }, [user]);
 
