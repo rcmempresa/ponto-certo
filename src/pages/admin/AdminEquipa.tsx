@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Users, Plus, Pencil, Trash2, Loader2, Shield, User } from 'lucide-react';
+import { Users, Pencil, Loader2, Shield, User, Briefcase, Calendar, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
@@ -14,16 +13,6 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -46,11 +35,12 @@ interface Profile {
 export default function AdminEquipa() {
   const { toast } = useToast();
   const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [filteredProfiles, setFilteredProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -62,6 +52,15 @@ export default function AdminEquipa() {
   useEffect(() => {
     fetchProfiles();
   }, []);
+
+  useEffect(() => {
+    const filtered = profiles.filter(profile =>
+      profile.nome.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      profile.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (profile.cargo?.toLowerCase().includes(searchQuery.toLowerCase()))
+    );
+    setFilteredProfiles(filtered);
+  }, [searchQuery, profiles]);
 
   const fetchProfiles = async () => {
     const { data: profilesData } = await supabase
@@ -82,6 +81,7 @@ export default function AdminEquipa() {
         };
       });
       setProfiles(profilesWithRoles);
+      setFilteredProfiles(profilesWithRoles);
     }
 
     setLoading(false);
@@ -168,14 +168,64 @@ export default function AdminEquipa() {
       .slice(0, 2);
   };
 
+  const adminCount = profiles.filter(p => p.role === 'admin').length;
+  const userCount = profiles.filter(p => p.role === 'user').length;
+
   return (
     <div className="space-y-8 animate-fade-in">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Gestão de Equipa</h1>
-          <p className="text-muted-foreground">Gerir perfis e permissões dos colaboradores</p>
+      {/* Hero Header */}
+      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/20 via-primary/10 to-transparent p-8 md:p-10">
+        <div className="absolute inset-0 bg-grid-white/10" />
+        <div className="absolute -right-20 -top-20 h-64 w-64 rounded-full bg-primary/20 blur-3xl" />
+        
+        <div className="relative flex flex-col md:flex-row md:items-center md:justify-between gap-6">
+          <div>
+            <div className="flex items-center gap-3 mb-2">
+              <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20">
+                <Users className="h-5 w-5 text-primary" />
+              </div>
+            </div>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">
+              Gestão de Equipa
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Gerir perfis e permissões dos colaboradores
+            </p>
+          </div>
+          
+          {/* Quick Stats */}
+          <div className="flex gap-4">
+            <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-background/80 backdrop-blur border border-border/50">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <Shield className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{adminCount}</p>
+                <p className="text-xs text-muted-foreground">Admins</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-background/80 backdrop-blur border border-border/50">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-muted">
+                <User className="h-5 w-5 text-muted-foreground" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{userCount}</p>
+                <p className="text-xs text-muted-foreground">Colaboradores</p>
+              </div>
+            </div>
+          </div>
         </div>
+      </div>
+
+      {/* Search Bar */}
+      <div className="relative">
+        <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+        <Input
+          placeholder="Pesquisar por nome, email ou cargo..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          className="pl-12 h-12 text-base rounded-xl border-border/50 bg-card"
+        />
       </div>
 
       {/* Team Grid */}
@@ -185,130 +235,187 @@ export default function AdminEquipa() {
         </div>
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {profiles.map((profile) => (
-            <Card key={profile.id} className="border-0 shadow-soft">
-              <CardContent className="p-6">
-                <div className="flex items-start justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <Avatar className="h-12 w-12">
-                      <AvatarFallback className="bg-primary/10 text-primary">
+          {filteredProfiles.map((profile, index) => (
+            <div 
+              key={profile.id} 
+              className="group relative overflow-hidden rounded-2xl border border-border/50 bg-card p-6 hover:border-primary/30 hover:shadow-lg transition-all duration-300"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              {/* Background decoration */}
+              <div className="absolute -right-8 -top-8 h-24 w-24 rounded-full bg-gradient-to-br from-primary/10 to-transparent blur-2xl opacity-0 group-hover:opacity-100 transition-opacity" />
+              
+              <div className="relative">
+                <div className="flex items-start justify-between mb-5">
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-14 w-14 ring-2 ring-background shadow-lg">
+                      <AvatarFallback className="bg-gradient-to-br from-primary/30 to-primary/10 text-primary font-semibold text-lg">
                         {getInitials(profile.nome || 'U')}
                       </AvatarFallback>
                     </Avatar>
-                    <div>
-                      <p className="font-medium">{profile.nome || 'Sem nome'}</p>
-                      <p className="text-sm text-muted-foreground">{profile.email}</p>
+                    <div className="min-w-0">
+                      <p className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
+                        {profile.nome || 'Sem nome'}
+                      </p>
+                      <p className="text-sm text-muted-foreground truncate">
+                        {profile.email}
+                      </p>
                     </div>
                   </div>
-                  <Badge variant={profile.role === 'admin' ? 'default' : 'secondary'}>
+                </div>
+
+                <div className="flex items-center gap-2 mb-5">
+                  <Badge 
+                    variant={profile.role === 'admin' ? 'default' : 'secondary'}
+                    className={profile.role === 'admin' 
+                      ? 'bg-primary/10 text-primary border-primary/30 hover:bg-primary/20' 
+                      : 'bg-muted text-muted-foreground'
+                    }
+                  >
                     {profile.role === 'admin' ? (
                       <>
-                        <Shield className="mr-1 h-3 w-3" />
-                        Admin
+                        <Shield className="mr-1.5 h-3 w-3" />
+                        Administrador
                       </>
                     ) : (
                       <>
-                        <User className="mr-1 h-3 w-3" />
-                        User
+                        <User className="mr-1.5 h-3 w-3" />
+                        Colaborador
                       </>
                     )}
                   </Badge>
                 </div>
 
-                <div className="space-y-2 mb-4">
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Cargo</span>
-                    <span>{profile.cargo || '—'}</span>
+                <div className="space-y-3 mb-5">
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50">
+                      <Briefcase className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground">Cargo</p>
+                      <p className="font-medium">{profile.cargo || '—'}</p>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Dias de Férias</span>
-                    <span className="font-medium">{profile.saldo_ferias}</span>
+                  <div className="flex items-center gap-3 text-sm">
+                    <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-muted/50">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div className="flex-1">
+                      <p className="text-xs text-muted-foreground">Dias de Férias</p>
+                      <p className="font-medium">{profile.saldo_ferias} dias</p>
+                    </div>
                   </div>
                 </div>
 
                 <Button
                   variant="outline"
                   size="sm"
-                  className="w-full"
+                  className="w-full rounded-xl border-border/50 hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
                   onClick={() => handleEdit(profile)}
                 >
                   <Pencil className="mr-2 h-4 w-4" />
-                  Editar
+                  Editar Perfil
                 </Button>
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           ))}
+        </div>
+      )}
+
+      {filteredProfiles.length === 0 && !loading && (
+        <div className="flex flex-col items-center justify-center py-16 text-center">
+          <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-muted/50 mb-4">
+            <Users className="h-10 w-10 text-muted-foreground/50" />
+          </div>
+          <p className="text-lg font-medium text-muted-foreground">
+            Nenhum colaborador encontrado
+          </p>
+          <p className="text-sm text-muted-foreground/70 mt-1">
+            Tente ajustar a sua pesquisa
+          </p>
         </div>
       )}
 
       {/* Edit Dialog */}
       <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent>
+        <DialogContent className="rounded-2xl">
           <DialogHeader>
-            <DialogTitle>Editar Colaborador</DialogTitle>
+            <DialogTitle className="text-xl">Editar Colaborador</DialogTitle>
             <DialogDescription>
               Alterar informações e permissões do colaborador.
             </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4 py-4">
+          <div className="space-y-5 py-4">
             <div className="space-y-2">
-              <Label htmlFor="nome">Nome</Label>
+              <Label htmlFor="nome" className="text-sm font-medium">Nome</Label>
               <Input
                 id="nome"
                 value={formData.nome}
                 onChange={(e) => setFormData({ ...formData, nome: e.target.value })}
+                className="rounded-xl"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="cargo">Cargo</Label>
+              <Label htmlFor="cargo" className="text-sm font-medium">Cargo</Label>
               <Input
                 id="cargo"
                 value={formData.cargo}
                 onChange={(e) => setFormData({ ...formData, cargo: e.target.value })}
                 placeholder="Ex: Desenvolvedor, Designer..."
+                className="rounded-xl"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="saldo_ferias">Dias de Férias</Label>
+              <Label htmlFor="saldo_ferias" className="text-sm font-medium">Dias de Férias</Label>
               <Input
                 id="saldo_ferias"
                 type="number"
                 min={0}
                 value={formData.saldo_ferias}
                 onChange={(e) => setFormData({ ...formData, saldo_ferias: parseInt(e.target.value) || 0 })}
+                className="rounded-xl"
               />
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="role">Permissão</Label>
+              <Label htmlFor="role" className="text-sm font-medium">Permissão</Label>
               <Select
                 value={formData.role}
                 onValueChange={(value) => setFormData({ ...formData, role: value })}
               >
-                <SelectTrigger>
+                <SelectTrigger className="rounded-xl">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="user">Colaborador</SelectItem>
-                  <SelectItem value="admin">Administrador</SelectItem>
+                  <SelectItem value="user">
+                    <div className="flex items-center gap-2">
+                      <User className="h-4 w-4" />
+                      Colaborador
+                    </div>
+                  </SelectItem>
+                  <SelectItem value="admin">
+                    <div className="flex items-center gap-2">
+                      <Shield className="h-4 w-4" />
+                      Administrador
+                    </div>
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)} className="rounded-xl">
               Cancelar
             </Button>
-            <Button onClick={handleSave} disabled={submitting}>
+            <Button onClick={handleSave} disabled={submitting} className="rounded-xl">
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   A guardar...
                 </>
               ) : (
-                'Guardar'
+                'Guardar Alterações'
               )}
             </Button>
           </DialogFooter>
