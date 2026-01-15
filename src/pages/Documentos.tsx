@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DocumentoRecord {
   id: string;
@@ -19,21 +20,56 @@ export default function Documentos() {
   const [documentos, setDocumentos] = useState<DocumentoRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const { user } = useAuth();
 
   useEffect(() => {
     fetchDocumentos();
-  }, []);
+  }, [user]);
 
   const fetchDocumentos = async () => {
-    const { data, error } = await supabase
+    if (!user) {
+      setLoading(false);
+      return;
+    }
+
+    // Fetch documents that are either:
+    // 1. Generally visible (visibilidade_geral = true)
+    // 2. User has specific permission in documento_permissoes
+    
+    // First get documents with general visibility
+    const { data: generalDocs, error: generalError } = await supabase
       .from('documentos')
       .select('*')
-      .eq('visibilidade_geral', true)
-      .order('created_at', { ascending: false });
+      .eq('visibilidade_geral', true);
 
-    if (data) {
-      setDocumentos(data);
+    // Then get documents with specific user permissions
+    const { data: permissionData, error: permError } = await supabase
+      .from('documento_permissoes')
+      .select('documento_id')
+      .eq('user_id', user.id);
+
+    if (permissionData && permissionData.length > 0) {
+      const docIds = permissionData.map(p => p.documento_id);
+      
+      const { data: permDocs, error: permDocsError } = await supabase
+        .from('documentos')
+        .select('*')
+        .in('id', docIds);
+
+      // Combine and deduplicate
+      const allDocs = [...(generalDocs || []), ...(permDocs || [])];
+      const uniqueDocs = allDocs.filter((doc, index, self) =>
+        index === self.findIndex((d) => d.id === doc.id)
+      );
+      
+      // Sort by created_at descending
+      uniqueDocs.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+      
+      setDocumentos(uniqueDocs);
+    } else {
+      setDocumentos(generalDocs || []);
     }
+    
     setLoading(false);
   };
 
