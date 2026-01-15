@@ -107,6 +107,42 @@ export type Database = {
         }
         Relationships: []
       }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          lida: boolean
+          mensagem: string
+          referencia_id: string | null
+          referencia_tipo: string | null
+          tipo: string
+          titulo: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          lida?: boolean
+          mensagem: string
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          tipo: string
+          titulo: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          lida?: boolean
+          mensagem?: string
+          referencia_id?: string | null
+          referencia_tipo?: string | null
+          tipo?: string
+          titulo?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ponto: {
         Row: {
           id: string
