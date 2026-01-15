@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Plus, Sun, Loader2, Info } from 'lucide-react';
+import { Calendar, Plus, Sun, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
@@ -10,22 +9,15 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, differenceInDays, isWeekend, eachDayOfInterval, isSameDay } from 'date-fns';
+import { format, differenceInDays, isWeekend, eachDayOfInterval } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { DateRange } from 'react-day-picker';
-import { isHoliday, getHolidayName, getHolidaysForYears } from '@/lib/holidays';
+import { isHoliday } from '@/lib/holidays';
+import { VacationCalendar } from '@/components/ferias/VacationCalendar';
 
 // Calculate business days (excluding weekends and holidays)
 const countBusinessDays = (start: Date, end: Date): number => {
@@ -48,7 +40,8 @@ export default function Ferias() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [dateRange, setDateRange] = useState<DateRange | undefined>();
+  const [calendarKey, setCalendarKey] = useState(0);
+  const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -71,10 +64,15 @@ export default function Ferias() {
     setLoading(false);
   };
 
-  const handleSubmit = async () => {
-    if (!user || !dateRange?.from || !dateRange?.to) return;
+  const handleSelectRange = (start: Date, end: Date) => {
+    setSelectedRange({ start, end });
+    setDialogOpen(true);
+  };
 
-    const requestedDays = countBusinessDays(dateRange.from, dateRange.to);
+  const handleSubmit = async () => {
+    if (!user || !selectedRange) return;
+
+    const requestedDays = countBusinessDays(selectedRange.start, selectedRange.end);
     const availableDays = profile?.saldo_ferias ?? 22;
 
     if (requestedDays > availableDays) {
@@ -90,8 +88,8 @@ export default function Ferias() {
 
     const { error } = await supabase.from('ferias').insert({
       user_id: user.id,
-      data_inicio: format(dateRange.from, 'yyyy-MM-dd'),
-      data_fim: format(dateRange.to, 'yyyy-MM-dd'),
+      data_inicio: format(selectedRange.start, 'yyyy-MM-dd'),
+      data_fim: format(selectedRange.end, 'yyyy-MM-dd'),
       status: 'pendente',
     });
 
@@ -107,8 +105,9 @@ export default function Ferias() {
         description: 'O seu pedido de férias foi enviado para aprovação.',
       });
       setDialogOpen(false);
-      setDateRange(undefined);
+      setSelectedRange(null);
       fetchFerias();
+      setCalendarKey((prev) => prev + 1);
     }
 
     setSubmitting(false);
@@ -124,124 +123,84 @@ export default function Ferias() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
-  const selectedDays = dateRange?.from && dateRange?.to
-    ? countBusinessDays(dateRange.from, dateRange.to)
+  const selectedDays = selectedRange
+    ? countBusinessDays(selectedRange.start, selectedRange.end)
     : 0;
   
   const availableDays = profile?.saldo_ferias ?? 22;
   const exceedsSaldo = selectedDays > availableDays;
 
-  // Get holidays for current and next year
-  const currentYear = new Date().getFullYear();
-  const holidays = getHolidaysForYears(currentYear, currentYear + 2);
-
-  // Custom day content to show holiday indicator
-  const modifiers = {
-    holiday: holidays,
-  };
-
-  const modifiersStyles = {
-    holiday: {
-      backgroundColor: 'hsl(var(--warning) / 0.2)',
-      color: 'hsl(var(--warning-foreground))',
-      fontWeight: 600,
-    },
-  };
-
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Férias</h1>
-          <p className="text-muted-foreground">Gerir os seus pedidos de férias</p>
-        </div>
-        <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
-          <DialogTrigger asChild>
-            <Button>
-              <Plus className="mr-2 h-4 w-4" />
-              Novo Pedido
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="sm:max-w-md">
-            <DialogHeader>
-              <DialogTitle>Novo Pedido de Férias</DialogTitle>
-              <DialogDescription>
-                Selecione as datas pretendidas para as suas férias.
-              </DialogDescription>
-            </DialogHeader>
-            <div className="py-4">
-              <CalendarComponent
-                mode="range"
-                selected={dateRange}
-                onSelect={setDateRange}
-                numberOfMonths={1}
-                locale={pt}
-                disabled={(date) => date < new Date() || isHoliday(date)}
-                modifiers={modifiers}
-                modifiersStyles={modifiersStyles}
-                className="rounded-md border pointer-events-auto"
-                components={{
-                  DayContent: ({ date }) => {
-                    const holidayName = getHolidayName(date);
-                    if (holidayName) {
-                      return (
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <span className="relative">
-                                {date.getDate()}
-                                <span className="absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full bg-warning" />
-                              </span>
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="text-xs">
-                              {holidayName}
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      );
-                    }
-                    return <span>{date.getDate()}</span>;
-                  },
-                }}
-              />
-              {selectedDays > 0 && (
-                <div className="mt-4 text-center space-y-1">
-                  <p className={`text-sm ${exceedsSaldo ? 'text-destructive' : 'text-muted-foreground'}`}>
-                    <span className="font-semibold text-foreground">{selectedDays}</span> dias úteis selecionados
-                  </p>
-                  {exceedsSaldo && (
-                    <p className="text-xs text-destructive font-medium">
-                      ⚠️ Excede o saldo disponível ({availableDays} dias)
-                    </p>
-                  )}
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Férias</h1>
+        <p className="text-muted-foreground">Selecione as datas no calendário para pedir férias</p>
+      </div>
+
+      {/* Vacation Calendar */}
+      <VacationCalendar key={calendarKey} onSelectRange={handleSelectRange} refreshKey={calendarKey} />
+
+      {/* Confirmation Dialog */}
+      <Dialog open={dialogOpen} onOpenChange={(open) => {
+        setDialogOpen(open);
+        if (!open) setSelectedRange(null);
+      }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Confirmar Pedido de Férias</DialogTitle>
+            <DialogDescription>
+              Reveja os detalhes do seu pedido antes de submeter.
+            </DialogDescription>
+          </DialogHeader>
+          {selectedRange && (
+            <div className="py-4 space-y-4">
+              <div className="p-4 rounded-lg bg-muted/50 space-y-2">
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Período:</span>
+                  <span className="text-sm font-medium">
+                    {format(selectedRange.start, 'd MMM', { locale: pt })} - {format(selectedRange.end, 'd MMM yyyy', { locale: pt })}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Dias úteis:</span>
+                  <span className={`text-sm font-medium ${exceedsSaldo ? 'text-destructive' : ''}`}>
+                    {selectedDays} dias
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Saldo disponível:</span>
+                  <span className="text-sm font-medium">{availableDays} dias</span>
+                </div>
+              </div>
+              
+              {exceedsSaldo && (
+                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                  ⚠️ O número de dias solicitados excede o seu saldo disponível.
                 </div>
               )}
-              <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
-                <span className="flex items-center gap-1">
-                  <span className="h-2 w-2 rounded-full bg-warning" />
-                  Feriados (não contam como férias)
-                </span>
-              </div>
             </div>
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setDialogOpen(false)}>
-                Cancelar
-              </Button>
-              <Button onClick={handleSubmit} disabled={!dateRange?.from || !dateRange?.to || submitting || exceedsSaldo}>
-                {submitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    A submeter...
-                  </>
-                ) : (
-                  'Submeter Pedido'
-                )}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => {
+              setDialogOpen(false);
+              setSelectedRange(null);
+            }}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSubmit} disabled={submitting || exceedsSaldo}>
+              {submitting ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  A submeter...
+                </>
+              ) : (
+                'Submeter Pedido'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Stats */}
       <div className="grid gap-4 sm:grid-cols-2">
