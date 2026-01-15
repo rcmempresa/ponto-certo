@@ -175,13 +175,13 @@ export function ClockWidget() {
           {/* Punch Button */}
           <div className="relative">
             {isWorking && (
-              <div className="absolute inset-0 rounded-full bg-success/20 animate-pulse-ring" />
+              <div className="absolute inset-0 rounded-full bg-success/20 animate-pulse-ring pointer-events-none" />
             )}
             <Button
               size="lg"
               onClick={handlePunch}
               disabled={loading}
-              className={`h-32 w-32 rounded-full text-lg font-medium transition-all duration-300 ${
+              className={`relative z-10 h-32 w-32 rounded-full text-lg font-medium transition-all duration-300 ${
                 isWorking 
                   ? 'bg-destructive hover:bg-destructive/90 shadow-glow-destructive' 
                   : 'bg-success hover:bg-success/90 shadow-glow-success'
