@@ -2,10 +2,11 @@ import { useEffect, useState } from 'react';
 import { Calendar, Clock, FileText, Sun } from 'lucide-react';
 import { ClockWidget } from '@/components/ponto/ClockWidget';
 import { StatsCard } from '@/components/dashboard/StatsCard';
+import { WeeklyHoursChart } from '@/components/dashboard/WeeklyHoursChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfMonth, endOfMonth, startOfDay, endOfDay } from 'date-fns';
+import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
 interface PontoRecord {
@@ -127,6 +128,9 @@ export default function Dashboard() {
           />
         </div>
       </div>
+
+      {/* Weekly Chart */}
+      <WeeklyHoursChart />
 
       {/* Recent Activity */}
       <Card className="border-0 shadow-soft">
