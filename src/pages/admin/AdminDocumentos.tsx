@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Upload, FileText, Trash2, Loader2, Plus, FolderOpen } from 'lucide-react';
+import { Upload, FileText, Trash2, Loader2, Plus, FolderOpen, Users, Eye, EyeOff, Settings2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Dialog,
   DialogContent,
@@ -32,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
@@ -47,36 +50,55 @@ interface DocumentoRecord {
   created_at: string;
 }
 
+interface Profile {
+  id: string;
+  nome: string;
+  email: string;
+}
+
+interface DocumentPermission {
+  documento_id: string;
+  user_id: string;
+}
+
 const CATEGORIAS = ['Geral', 'Regulamentos', 'Manuais', 'Políticas', 'Formulários'];
 
 export default function AdminDocumentos() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [documentos, setDocumentos] = useState<DocumentoRecord[]>([]);
+  const [profiles, setProfiles] = useState<Profile[]>([]);
+  const [permissions, setPermissions] = useState<DocumentPermission[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [permissionsDialogOpen, setPermissionsDialogOpen] = useState(false);
+  const [selectedDocument, setSelectedDocument] = useState<DocumentoRecord | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [savingPermissions, setSavingPermissions] = useState(false);
 
   const [formData, setFormData] = useState({
     titulo: '',
     categoria: 'Geral',
+    visibilidade_geral: true,
   });
   const [file, setFile] = useState<File | null>(null);
+  const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
 
   useEffect(() => {
-    fetchDocumentos();
+    fetchData();
   }, []);
 
-  const fetchDocumentos = async () => {
-    const { data, error } = await supabase
-      .from('documentos')
-      .select('*')
-      .order('created_at', { ascending: false });
+  const fetchData = async () => {
+    const [docsResult, profilesResult, permissionsResult] = await Promise.all([
+      supabase.from('documentos').select('*').order('created_at', { ascending: false }),
+      supabase.from('profiles').select('id, nome, email'),
+      supabase.from('documento_permissoes').select('documento_id, user_id'),
+    ]);
 
-    if (data) {
-      setDocumentos(data);
-    }
+    if (docsResult.data) setDocumentos(docsResult.data);
+    if (profilesResult.data) setProfiles(profilesResult.data);
+    if (permissionsResult.data) setPermissions(permissionsResult.data);
     setLoading(false);
   };
 
@@ -108,13 +130,13 @@ export default function AdminDocumentos() {
       .getPublicUrl(filePath);
 
     // Create document record
-    const { error } = await supabase.from('documentos').insert({
+    const { data: newDoc, error } = await supabase.from('documentos').insert({
       titulo: formData.titulo,
       categoria: formData.categoria,
       ficheiro_url: urlData.publicUrl,
-      visibilidade_geral: true,
+      visibilidade_geral: formData.visibilidade_geral,
       uploaded_by: user.id,
-    });
+    }).select().single();
 
     if (error) {
       toast({
@@ -123,14 +145,24 @@ export default function AdminDocumentos() {
         variant: 'destructive',
       });
     } else {
+      // If not general visibility and users are selected, add permissions
+      if (!formData.visibilidade_geral && selectedUsers.length > 0 && newDoc) {
+        const permissionsToInsert = selectedUsers.map(userId => ({
+          documento_id: newDoc.id,
+          user_id: userId,
+        }));
+        await supabase.from('documento_permissoes').insert(permissionsToInsert);
+      }
+
       toast({
         title: 'Documento criado',
         description: 'O documento foi adicionado com sucesso.',
       });
       setDialogOpen(false);
-      setFormData({ titulo: '', categoria: 'Geral' });
+      setFormData({ titulo: '', categoria: 'Geral', visibilidade_geral: true });
       setFile(null);
-      fetchDocumentos();
+      setSelectedUsers([]);
+      fetchData();
     }
 
     setSubmitting(false);
@@ -152,10 +184,72 @@ export default function AdminDocumentos() {
         title: 'Documento eliminado',
         description: 'O documento foi removido com sucesso.',
       });
-      fetchDocumentos();
+      fetchData();
     }
 
     setDeletingId(null);
+  };
+
+  const openPermissionsDialog = (doc: DocumentoRecord) => {
+    setSelectedDocument(doc);
+    const docPermissions = permissions.filter(p => p.documento_id === doc.id);
+    setSelectedUsers(docPermissions.map(p => p.user_id));
+    setPermissionsDialogOpen(true);
+  };
+
+  const handleSavePermissions = async () => {
+    if (!selectedDocument) return;
+    setSavingPermissions(true);
+
+    // Delete existing permissions
+    await supabase
+      .from('documento_permissoes')
+      .delete()
+      .eq('documento_id', selectedDocument.id);
+
+    // Insert new permissions
+    if (selectedUsers.length > 0) {
+      const permissionsToInsert = selectedUsers.map(userId => ({
+        documento_id: selectedDocument.id,
+        user_id: userId,
+      }));
+      await supabase.from('documento_permissoes').insert(permissionsToInsert);
+    }
+
+    toast({
+      title: 'Permissões atualizadas',
+      description: 'As permissões do documento foram atualizadas.',
+    });
+    setPermissionsDialogOpen(false);
+    fetchData();
+    setSavingPermissions(false);
+  };
+
+  const toggleVisibility = async (doc: DocumentoRecord) => {
+    const { error } = await supabase
+      .from('documentos')
+      .update({ visibilidade_geral: !doc.visibilidade_geral })
+      .eq('id', doc.id);
+
+    if (!error) {
+      setDocumentos(prev =>
+        prev.map(d => d.id === doc.id ? { ...d, visibilidade_geral: !d.visibilidade_geral } : d)
+      );
+      toast({
+        title: doc.visibilidade_geral ? 'Visibilidade restrita' : 'Visibilidade pública',
+        description: doc.visibilidade_geral 
+          ? 'O documento agora é visível apenas para utilizadores selecionados.'
+          : 'O documento agora é visível para todos.',
+      });
+    }
+  };
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUsers(prev =>
+      prev.includes(userId)
+        ? prev.filter(id => id !== userId)
+        : [...prev, userId]
+    );
   };
 
   const getFileIcon = (url: string) => {
@@ -163,6 +257,10 @@ export default function AdminDocumentos() {
     if (url.includes('.doc')) return '📝';
     if (url.includes('.xls')) return '📊';
     return '📁';
+  };
+
+  const getDocumentPermissionCount = (docId: string) => {
+    return permissions.filter(p => p.documento_id === docId).length;
   };
 
   return (
@@ -180,7 +278,7 @@ export default function AdminDocumentos() {
               Carregar Documento
             </Button>
           </DialogTrigger>
-          <DialogContent>
+          <DialogContent className="max-w-lg">
             <DialogHeader>
               <DialogTitle>Novo Documento</DialogTitle>
               <DialogDescription>
@@ -228,6 +326,51 @@ export default function AdminDocumentos() {
                 />
                 <p className="text-xs text-muted-foreground">PDF, Word ou Excel</p>
               </div>
+
+              <div className="flex items-center justify-between rounded-lg border p-3">
+                <div className="space-y-0.5">
+                  <Label className="text-sm font-medium">Visível para todos</Label>
+                  <p className="text-xs text-muted-foreground">
+                    {formData.visibilidade_geral 
+                      ? 'Todos os colaboradores podem ver'
+                      : 'Apenas utilizadores selecionados'}
+                  </p>
+                </div>
+                <Switch
+                  checked={formData.visibilidade_geral}
+                  onCheckedChange={(checked) => setFormData({ ...formData, visibilidade_geral: checked })}
+                />
+              </div>
+
+              {!formData.visibilidade_geral && (
+                <div className="space-y-2">
+                  <Label>Selecionar colaboradores</Label>
+                  <ScrollArea className="h-[150px] rounded-md border p-2">
+                    {profiles.map((profile) => (
+                      <div
+                        key={profile.id}
+                        className="flex items-center space-x-2 py-2 px-1 hover:bg-muted/50 rounded"
+                      >
+                        <Checkbox
+                          id={`user-${profile.id}`}
+                          checked={selectedUsers.includes(profile.id)}
+                          onCheckedChange={() => toggleUserSelection(profile.id)}
+                        />
+                        <label
+                          htmlFor={`user-${profile.id}`}
+                          className="flex-1 text-sm cursor-pointer"
+                        >
+                          <span className="font-medium">{profile.nome || 'Sem nome'}</span>
+                          <span className="text-muted-foreground ml-2 text-xs">{profile.email}</span>
+                        </label>
+                      </div>
+                    ))}
+                  </ScrollArea>
+                  <p className="text-xs text-muted-foreground">
+                    {selectedUsers.length} colaborador(es) selecionado(s)
+                  </p>
+                </div>
+              )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
@@ -247,6 +390,54 @@ export default function AdminDocumentos() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Permissions Dialog */}
+      <Dialog open={permissionsDialogOpen} onOpenChange={setPermissionsDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Gerir Permissões</DialogTitle>
+            <DialogDescription>
+              Selecione quais colaboradores podem ver o documento "{selectedDocument?.titulo}"
+            </DialogDescription>
+          </DialogHeader>
+          <ScrollArea className="h-[300px] rounded-md border p-2">
+            {profiles.map((profile) => (
+              <div
+                key={profile.id}
+                className="flex items-center space-x-2 py-2 px-1 hover:bg-muted/50 rounded"
+              >
+                <Checkbox
+                  id={`perm-${profile.id}`}
+                  checked={selectedUsers.includes(profile.id)}
+                  onCheckedChange={() => toggleUserSelection(profile.id)}
+                />
+                <label
+                  htmlFor={`perm-${profile.id}`}
+                  className="flex-1 text-sm cursor-pointer"
+                >
+                  <span className="font-medium">{profile.nome || 'Sem nome'}</span>
+                  <span className="text-muted-foreground ml-2 text-xs">{profile.email}</span>
+                </label>
+              </div>
+            ))}
+          </ScrollArea>
+          <p className="text-xs text-muted-foreground">
+            {selectedUsers.length} colaborador(es) selecionado(s)
+          </p>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPermissionsDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleSavePermissions} disabled={savingPermissions}>
+              {savingPermissions ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                'Guardar'
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Documents List */}
       <Card className="border-0 shadow-soft">
@@ -275,6 +466,22 @@ export default function AdminDocumentos() {
                         <Badge variant="secondary" className="text-xs">
                           {doc.categoria}
                         </Badge>
+                        <Badge 
+                          variant={doc.visibilidade_geral ? 'default' : 'outline'} 
+                          className="text-xs gap-1"
+                        >
+                          {doc.visibilidade_geral ? (
+                            <>
+                              <Eye className="h-3 w-3" />
+                              Público
+                            </>
+                          ) : (
+                            <>
+                              <EyeOff className="h-3 w-3" />
+                              Restrito ({getDocumentPermissionCount(doc.id)})
+                            </>
+                          )}
+                        </Badge>
                         <span className="text-xs text-muted-foreground">
                           {format(new Date(doc.created_at), "d MMM yyyy", { locale: pt })}
                         </span>
@@ -282,6 +489,28 @@ export default function AdminDocumentos() {
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
+                    {!doc.visibilidade_geral && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => openPermissionsDialog(doc)}
+                      >
+                        <Users className="mr-1 h-4 w-4" />
+                        Permissões
+                      </Button>
+                    )}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => toggleVisibility(doc)}
+                      title={doc.visibilidade_geral ? 'Tornar restrito' : 'Tornar público'}
+                    >
+                      {doc.visibilidade_geral ? (
+                        <EyeOff className="h-4 w-4" />
+                      ) : (
+                        <Eye className="h-4 w-4" />
+                      )}
+                    </Button>
                     <Button variant="outline" size="sm" asChild>
                       <a href={doc.ficheiro_url} target="_blank" rel="noopener noreferrer">
                         Ver

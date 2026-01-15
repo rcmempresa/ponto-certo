@@ -14,6 +14,35 @@ export type Database = {
   }
   public: {
     Tables: {
+      documento_permissoes: {
+        Row: {
+          created_at: string
+          documento_id: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          documento_id: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          documento_id?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "documento_permissoes_documento_id_fkey"
+            columns: ["documento_id"]
+            isOneToOne: false
+            referencedRelation: "documentos"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       documentos: {
         Row: {
           categoria: string
