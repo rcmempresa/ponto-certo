@@ -16,9 +16,15 @@ import {
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, differenceInDays, addDays } from 'date-fns';
+import { format, differenceInDays, addDays, isWeekend, eachDayOfInterval } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
+
+// Calculate business days (excluding weekends)
+const countBusinessDays = (start: Date, end: Date): number => {
+  const days = eachDayOfInterval({ start, end });
+  return days.filter(day => !isWeekend(day)).length;
+};
 
 interface FeriasRecord {
   id: string;
@@ -61,6 +67,18 @@ export default function Ferias() {
   const handleSubmit = async () => {
     if (!user || !dateRange?.from || !dateRange?.to) return;
 
+    const requestedDays = countBusinessDays(dateRange.from, dateRange.to);
+    const availableDays = profile?.saldo_ferias ?? 22;
+
+    if (requestedDays > availableDays) {
+      toast({
+        title: 'Saldo insuficiente',
+        description: `Está a pedir ${requestedDays} dias úteis, mas só tem ${availableDays} dias disponíveis.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
     setSubmitting(true);
 
     const { error } = await supabase.from('ferias').insert({
@@ -100,8 +118,11 @@ export default function Ferias() {
   };
 
   const selectedDays = dateRange?.from && dateRange?.to
-    ? differenceInDays(dateRange.to, dateRange.from) + 1
+    ? countBusinessDays(dateRange.from, dateRange.to)
     : 0;
+  
+  const availableDays = profile?.saldo_ferias ?? 22;
+  const exceedsSaldo = selectedDays > availableDays;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -136,16 +157,23 @@ export default function Ferias() {
                 className="rounded-md border"
               />
               {selectedDays > 0 && (
-                <p className="mt-4 text-center text-sm text-muted-foreground">
-                  <span className="font-semibold text-foreground">{selectedDays}</span> dias selecionados
-                </p>
+                <div className="mt-4 text-center space-y-1">
+                  <p className={`text-sm ${exceedsSaldo ? 'text-destructive' : 'text-muted-foreground'}`}>
+                    <span className="font-semibold text-foreground">{selectedDays}</span> dias úteis selecionados
+                  </p>
+                  {exceedsSaldo && (
+                    <p className="text-xs text-destructive font-medium">
+                      ⚠️ Excede o saldo disponível ({availableDays} dias)
+                    </p>
+                  )}
+                </div>
               )}
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleSubmit} disabled={!dateRange?.from || !dateRange?.to || submitting}>
+              <Button onClick={handleSubmit} disabled={!dateRange?.from || !dateRange?.to || submitting || exceedsSaldo}>
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
