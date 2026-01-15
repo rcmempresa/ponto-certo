@@ -107,15 +107,27 @@ export default function AdminDocumentos() {
 
     setSubmitting(true);
 
+    // Sanitize filename - remove special characters and accents
+    const sanitizeFileName = (name: string) => {
+      return name
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '') // Remove accents
+        .replace(/[^a-zA-Z0-9.-]/g, '-') // Replace special chars with dash
+        .replace(/-+/g, '-') // Remove consecutive dashes
+        .toLowerCase();
+    };
+
     // Upload file
     const fileExt = file.name.split('.').pop();
-    const filePath = `${Date.now()}-${formData.titulo.replace(/\s+/g, '-')}.${fileExt}`;
+    const sanitizedTitle = sanitizeFileName(formData.titulo);
+    const filePath = `${Date.now()}-${sanitizedTitle}.${fileExt}`;
 
     const { error: uploadError } = await supabase.storage
       .from('company_docs')
       .upload(filePath, file);
 
     if (uploadError) {
+      console.error('Upload error:', uploadError);
       toast({
         title: 'Erro',
         description: 'Não foi possível fazer upload do ficheiro.',
