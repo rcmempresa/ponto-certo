@@ -125,18 +125,35 @@ export default function AdminAprovacoes() {
       );
 
       // Get current saldo
-      const { data: profile } = await supabase
+      const { data: profileData, error: profileError } = await supabase
         .from('profiles')
         .select('saldo_ferias')
         .eq('id', request.user_id)
         .single();
 
-      if (profile) {
-        const newSaldo = Math.max(0, (profile.saldo_ferias || 22) - businessDays);
-        await supabase
+      console.log('Profile fetch:', { profileData, profileError, userId: request.user_id });
+
+      if (profileData) {
+        const currentSaldo = profileData.saldo_ferias ?? 22;
+        const newSaldo = Math.max(0, currentSaldo - businessDays);
+        
+        console.log('Updating saldo:', { currentSaldo, businessDays, newSaldo });
+        
+        const { error: updateError } = await supabase
           .from('profiles')
           .update({ saldo_ferias: newSaldo })
           .eq('id', request.user_id);
+          
+        if (updateError) {
+          console.error('Error updating saldo:', updateError);
+          toast({
+            title: 'Aviso',
+            description: 'Férias aprovadas mas houve erro ao atualizar o saldo.',
+            variant: 'destructive',
+          });
+        } else {
+          console.log('Saldo updated successfully to', newSaldo);
+        }
       }
     }
 
