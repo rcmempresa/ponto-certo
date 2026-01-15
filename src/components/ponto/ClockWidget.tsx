@@ -99,16 +99,24 @@ export function ClockWidget() {
   };
 
   const handlePunch = async () => {
-    if (!user) return;
+    if (!user) {
+      console.log('handlePunch: No user found');
+      return;
+    }
 
+    console.log('handlePunch called, isWorking:', isWorking);
     setLoading(true);
     const tipo: PontoTipo = isWorking ? 'saida' : 'entrada';
 
-    const { error } = await supabase.from('ponto').insert({
+    console.log('Inserting ponto:', { user_id: user.id, tipo });
+    
+    const { data, error } = await supabase.from('ponto').insert({
       user_id: user.id,
       tipo,
       timestamp: new Date().toISOString(),
-    });
+    }).select();
+
+    console.log('Ponto insert result:', { data, error });
 
     if (error) {
       toast({
@@ -129,6 +137,9 @@ export function ClockWidget() {
         setIsWorking(false);
         setLastEntry(null);
       }
+      
+      // Refresh today's records
+      fetchTodayRecords();
     }
 
     setLoading(false);
