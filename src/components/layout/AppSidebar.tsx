@@ -1,4 +1,5 @@
-import { Clock, Calendar, FileText, FolderOpen, Users, CheckSquare, BarChart3, LogOut, Settings } from 'lucide-react';
+import { useState } from 'react';
+import { Clock, Calendar, FileText, FolderOpen, Users, CheckSquare, BarChart3, LogOut, ArrowLeftRight } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -15,6 +16,7 @@ import {
 } from '@/components/ui/sidebar';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 const userMenuItems = [
   { title: 'Dashboard', url: '/dashboard', icon: Clock },
@@ -32,6 +34,7 @@ const adminMenuItems = [
 
 export function AppSidebar() {
   const { profile, isAdmin, signOut } = useAuth();
+  const [viewMode, setViewMode] = useState<'admin' | 'colaborador'>('colaborador');
 
   const getInitials = (name: string) => {
     return name
@@ -41,6 +44,13 @@ export function AppSidebar() {
       .toUpperCase()
       .slice(0, 2);
   };
+
+  const toggleView = () => {
+    setViewMode(viewMode === 'admin' ? 'colaborador' : 'admin');
+  };
+
+  // Show admin menu only when in admin mode
+  const showAdminMenu = isAdmin && viewMode === 'admin';
 
   return (
     <Sidebar className="border-r-0">
@@ -57,8 +67,34 @@ export function AppSidebar() {
       </SidebarHeader>
 
       <SidebarContent>
+        {/* View Mode Toggle for Admins */}
+        {isAdmin && (
+          <div className="px-3 py-4">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={toggleView}
+              className="w-full justify-between bg-sidebar-accent/50 border-sidebar-border text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
+            >
+              <span className="flex items-center gap-2">
+                <ArrowLeftRight className="h-4 w-4" />
+                {viewMode === 'admin' ? 'Modo Admin' : 'Modo Colaborador'}
+              </span>
+              <Badge 
+                variant="secondary" 
+                className="text-[10px] px-1.5 py-0 bg-sidebar-accent text-sidebar-foreground"
+              >
+                Alternar
+              </Badge>
+            </Button>
+          </div>
+        )}
+
+        {/* Collaborator Menu - Always visible */}
         <SidebarGroup>
-          <SidebarGroupLabel className="text-sidebar-foreground/50">Portal</SidebarGroupLabel>
+          <SidebarGroupLabel className="text-sidebar-foreground/50">
+            {isAdmin && viewMode === 'admin' ? 'Meu Portal' : 'Portal'}
+          </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
               {userMenuItems.map((item) => (
@@ -80,7 +116,8 @@ export function AppSidebar() {
           </SidebarGroupContent>
         </SidebarGroup>
 
-        {isAdmin && (
+        {/* Admin Menu - Only when in admin mode */}
+        {showAdminMenu && (
           <SidebarGroup>
             <SidebarGroupLabel className="text-sidebar-foreground/50">Administração</SidebarGroupLabel>
             <SidebarGroupContent>
@@ -118,7 +155,7 @@ export function AppSidebar() {
               {profile?.nome || 'Utilizador'}
             </p>
             <p className="text-xs text-sidebar-foreground/60 truncate">
-              {profile?.cargo || (isAdmin ? 'Administrador' : 'Colaborador')}
+              {isAdmin ? (viewMode === 'admin' ? 'Administrador' : 'Colaborador') : (profile?.cargo || 'Colaborador')}
             </p>
           </div>
           <Button 
