@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Plus, Sun, Loader2 } from 'lucide-react';
+import { Calendar, Plus, Sun, Loader2, Info } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -13,17 +13,24 @@ import {
   DialogTrigger,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, differenceInDays, addDays, isWeekend, eachDayOfInterval } from 'date-fns';
+import { format, differenceInDays, isWeekend, eachDayOfInterval, isSameDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { DateRange } from 'react-day-picker';
+import { isHoliday, getHolidayName, getHolidaysForYears } from '@/lib/holidays';
 
-// Calculate business days (excluding weekends)
+// Calculate business days (excluding weekends and holidays)
 const countBusinessDays = (start: Date, end: Date): number => {
   const days = eachDayOfInterval({ start, end });
-  return days.filter(day => !isWeekend(day)).length;
+  return days.filter(day => !isWeekend(day) && !isHoliday(day)).length;
 };
 
 interface FeriasRecord {
@@ -124,6 +131,23 @@ export default function Ferias() {
   const availableDays = profile?.saldo_ferias ?? 22;
   const exceedsSaldo = selectedDays > availableDays;
 
+  // Get holidays for current and next year
+  const currentYear = new Date().getFullYear();
+  const holidays = getHolidaysForYears(currentYear, currentYear + 2);
+
+  // Custom day content to show holiday indicator
+  const modifiers = {
+    holiday: holidays,
+  };
+
+  const modifiersStyles = {
+    holiday: {
+      backgroundColor: 'hsl(var(--warning) / 0.2)',
+      color: 'hsl(var(--warning-foreground))',
+      fontWeight: 600,
+    },
+  };
+
   return (
     <div className="space-y-8 animate-fade-in">
       {/* Header */}
@@ -153,8 +177,33 @@ export default function Ferias() {
                 onSelect={setDateRange}
                 numberOfMonths={1}
                 locale={pt}
-                disabled={(date) => date < new Date()}
-                className="rounded-md border"
+                disabled={(date) => date < new Date() || isHoliday(date)}
+                modifiers={modifiers}
+                modifiersStyles={modifiersStyles}
+                className="rounded-md border pointer-events-auto"
+                components={{
+                  DayContent: ({ date }) => {
+                    const holidayName = getHolidayName(date);
+                    if (holidayName) {
+                      return (
+                        <TooltipProvider>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <span className="relative">
+                                {date.getDate()}
+                                <span className="absolute -top-1 -right-1 h-1.5 w-1.5 rounded-full bg-warning" />
+                              </span>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="text-xs">
+                              {holidayName}
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
+                      );
+                    }
+                    return <span>{date.getDate()}</span>;
+                  },
+                }}
               />
               {selectedDays > 0 && (
                 <div className="mt-4 text-center space-y-1">
@@ -168,6 +217,12 @@ export default function Ferias() {
                   )}
                 </div>
               )}
+              <div className="mt-3 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+                <span className="flex items-center gap-1">
+                  <span className="h-2 w-2 rounded-full bg-warning" />
+                  Feriados (não contam como férias)
+                </span>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
