@@ -10,7 +10,13 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { ChevronLeft, ChevronRight, Loader2, AlertCircle, CheckCircle2, Clock, FileText } from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { ChevronLeft, ChevronRight, Loader2, AlertCircle, CheckCircle2, Clock, FileText, Plus } from 'lucide-react';
 import {
   format,
   startOfMonth,
@@ -28,6 +34,7 @@ import {
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { isHoliday, getHolidayName } from '@/lib/holidays';
+import { ManualPunchDialog } from '@/components/ponto/ManualPunchDialog';
 
 const MINIMUM_HOURS = 8;
 
@@ -57,6 +64,7 @@ interface DayStatus {
   isWeekend: boolean;
   isFuture: boolean;
   isToday: boolean;
+  hasNoRecords: boolean;
 }
 
 interface AttendanceCalendarProps {
@@ -68,6 +76,8 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [loading, setLoading] = useState(true);
   const [dayStatuses, setDayStatuses] = useState<DayStatus[]>([]);
+  const [punchDialogOpen, setPunchDialogOpen] = useState(false);
+  const [selectedDateForPunch, setSelectedDateForPunch] = useState<string>('');
 
   useEffect(() => {
     if (user) {
@@ -164,6 +174,7 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
         isWeekend: isWeekendDay,
         isFuture: isFutureDay,
         isToday: isTodayDay,
+        hasNoRecords: !hasAnyRecords && !isWeekendDay && !isHolidayDay && !isFutureDay && !isTodayDay,
       };
     });
 
@@ -223,7 +234,7 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
       return `Falta justificada (${statusLabel}): ${status.faltaMotivo}`;
     }
     if (status.isIncomplete) {
-      return `${status.hoursWorked}h trabalhadas (mín. ${MINIMUM_HOURS}h) - Clique para justificar`;
+      return `${status.hoursWorked}h trabalhadas (mín. ${MINIMUM_HOURS}h) - Clique para opções`;
     }
     if (status.isComplete) {
       return `${status.hoursWorked}h trabalhadas ✓`;
@@ -231,13 +242,23 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
     if (status.isToday) {
       return `Hoje: ${status.hoursWorked}h até agora`;
     }
+    if (status.hasNoRecords) {
+      return 'Sem registos - Clique para adicionar horas';
+    }
     return '';
   };
 
   const handleDayClick = (status: DayStatus) => {
-    if (status.isIncomplete && !status.hasFalta) {
-      onJustifyDay(format(status.date, 'yyyy-MM-dd'));
-    }
+    // Allow clicking on incomplete days without falta to show options
+  };
+
+  const handleAddPunch = (date: Date) => {
+    setSelectedDateForPunch(format(date, 'yyyy-MM-dd'));
+    setPunchDialogOpen(true);
+  };
+
+  const handlePunchSuccess = () => {
+    fetchMonthData();
   };
 
   // Get calendar grid
@@ -305,6 +326,8 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
               {calendarDays.map((day) => {
                 const status = dayStatuses.find((s) => isSameDay(s.date, day));
                 const isCurrentMonth = isSameMonth(day, currentMonth);
+                const canAddPunch = status && !status.isFuture && !status.isWeekend && !status.isHoliday;
+                const showOptions = status && (status.isIncomplete || status.hasNoRecords) && !status.hasFalta;
 
                 if (!isCurrentMonth) {
                   return (
@@ -317,13 +340,41 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
                   );
                 }
 
+                if (showOptions) {
+                  return (
+                    <DropdownMenu key={day.toISOString()}>
+                      <DropdownMenuTrigger asChild>
+                        <button
+                          className={`aspect-square p-1 rounded-lg border text-center text-xs font-medium transition-colors ${
+                            getDayClass(status)
+                          } ${status.isToday ? 'ring-2 ring-primary ring-offset-1' : ''}`}
+                        >
+                          <div className="flex flex-col items-center justify-center h-full">
+                            <span>{format(day, 'd')}</span>
+                            {getDayIcon(status)}
+                          </div>
+                        </button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="center" className="w-48">
+                        <DropdownMenuItem onClick={() => handleAddPunch(day)}>
+                          <Plus className="mr-2 h-4 w-4 text-primary" />
+                          Registar horas
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => onJustifyDay(format(day, 'yyyy-MM-dd'))}>
+                          <FileText className="mr-2 h-4 w-4 text-warning" />
+                          Justificar falta
+                        </DropdownMenuItem>
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  );
+                }
+
                 return (
                   <TooltipProvider key={day.toISOString()}>
                     <Tooltip>
                       <TooltipTrigger asChild>
                         <button
-                          onClick={() => status && handleDayClick(status)}
-                          disabled={!status?.isIncomplete || status?.hasFalta}
+                          disabled
                           className={`aspect-square p-1 rounded-lg border text-center text-xs font-medium transition-colors ${
                             status ? getDayClass(status) : ''
                           } ${status?.isToday ? 'ring-2 ring-primary ring-offset-1' : ''}`}
@@ -365,6 +416,17 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
           </>
         )}
       </CardContent>
+
+      {/* Manual Punch Dialog */}
+      {user && (
+        <ManualPunchDialog
+          open={punchDialogOpen}
+          onOpenChange={setPunchDialogOpen}
+          userId={user.id}
+          selectedDate={selectedDateForPunch}
+          onSuccess={handlePunchSuccess}
+        />
+      )}
     </Card>
   );
 }
