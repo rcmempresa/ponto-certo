@@ -13,6 +13,7 @@ import Faltas from "./pages/Faltas";
 import Documentos from "./pages/Documentos";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminEquipa from "./pages/admin/AdminEquipa";
+import AdminPonto from "./pages/admin/AdminPonto";
 import AdminAprovacoes from "./pages/admin/AdminAprovacoes";
 import AdminDocumentos from "./pages/admin/AdminDocumentos";
 import NotFound from "./pages/NotFound";
@@ -56,6 +57,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requireAdmin>
                     <AdminEquipa />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/ponto"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminPonto />
                   </ProtectedRoute>
                 }
               />

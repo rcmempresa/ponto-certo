@@ -28,6 +28,7 @@ const userMenuItems = [
 const adminMenuItems = [
   { title: 'Painel RH', url: '/admin', icon: BarChart3 },
   { title: 'Equipa', url: '/admin/equipa', icon: Users },
+  { title: 'Ponto', url: '/admin/ponto', icon: Clock },
   { title: 'Aprovações', url: '/admin/aprovacoes', icon: CheckSquare },
   { title: 'Documentos', url: '/admin/documentos', icon: FolderOpen },
 ];
