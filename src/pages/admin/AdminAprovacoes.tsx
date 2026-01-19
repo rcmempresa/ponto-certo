@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, X, Loader2, Calendar, FileText, Clock, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { Check, X, Loader2, Calendar, FileText, Clock, AlertCircle, CheckCircle2, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -44,10 +44,27 @@ interface FaltaRequest {
   };
 }
 
+interface PontoRequest {
+  id: string;
+  user_id: string;
+  tipo: 'entrada' | 'saida';
+  timestamp: string;
+  status: string;
+  manual: boolean;
+  observacoes: string | null;
+  localizacao: string | null;
+  profile?: {
+    nome: string;
+    email: string;
+    cargo: string | null;
+  };
+}
+
 export default function AdminAprovacoes() {
   const { toast } = useToast();
   const [ferias, setFerias] = useState<FeriasRequest[]>([]);
   const [faltas, setFaltas] = useState<FaltaRequest[]>([]);
+  const [pontos, setPontos] = useState<PontoRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
 
@@ -56,10 +73,8 @@ export default function AdminAprovacoes() {
   }, []);
 
   const fetchRequests = async () => {
-    // Fetch all profiles first
     const { data: profiles } = await supabase.from('profiles').select('id, nome, email, cargo');
 
-    // Fetch ferias
     const { data: feriasData } = await supabase
       .from('ferias')
       .select('*')
@@ -73,7 +88,6 @@ export default function AdminAprovacoes() {
       setFerias(feriasWithProfiles);
     }
 
-    // Fetch faltas
     const { data: faltasData } = await supabase
       .from('faltas')
       .select('*')
@@ -87,20 +101,31 @@ export default function AdminAprovacoes() {
       setFaltas(faltasWithProfiles);
     }
 
+    const { data: pontoData } = await supabase
+      .from('ponto')
+      .select('*')
+      .eq('manual', true)
+      .order('timestamp', { ascending: false });
+
+    if (pontoData && profiles) {
+      const pontoWithProfiles = pontoData.map((p) => ({
+        ...p,
+        profile: profiles.find((pr) => pr.id === p.user_id),
+      }));
+      setPontos(pontoWithProfiles);
+    }
+
     setLoading(false);
   };
 
   const handleFeriasAction = async (id: string, action: 'aprovado' | 'rejeitado') => {
     setProcessingId(id);
-
-    // Find the request to get user_id and dates
     const request = ferias.find(f => f.id === id);
     if (!request) {
       setProcessingId(null);
       return;
     }
 
-    // Update the status
     const { error } = await supabase
       .from('ferias')
       .update({ status: action })
@@ -116,15 +141,13 @@ export default function AdminAprovacoes() {
       return;
     }
 
-    // If approved, deduct from saldo_ferias
     if (action === 'aprovado') {
       const businessDays = countBusinessDays(
         new Date(request.data_inicio),
         new Date(request.data_fim)
       );
 
-      // Get current saldo
-      const { data: profileData, error: profileError } = await supabase
+      const { data: profileData } = await supabase
         .from('profiles')
         .select('saldo_ferias')
         .eq('id', request.user_id)
@@ -176,6 +199,31 @@ export default function AdminAprovacoes() {
     setProcessingId(null);
   };
 
+  const handlePontoAction = async (id: string, action: 'aprovado' | 'rejeitado') => {
+    setProcessingId(id);
+
+    const { error } = await supabase
+      .from('ponto')
+      .update({ status: action })
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível processar o pedido.',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: action === 'aprovado' ? 'Ponto aprovado' : 'Ponto rejeitado',
+        description: 'O colaborador será notificado.',
+      });
+      fetchRequests();
+    }
+
+    setProcessingId(null);
+  };
+
   const getInitials = (name: string) => {
     return name
       .split(' ')
@@ -216,7 +264,8 @@ export default function AdminAprovacoes() {
 
   const pendingFerias = ferias.filter((f) => f.status === 'pendente');
   const pendingFaltas = faltas.filter((f) => f.status === 'pendente');
-  const totalPending = pendingFerias.length + pendingFaltas.length;
+  const pendingPontos = pontos.filter((p) => p.status === 'pendente');
+  const totalPending = pendingFerias.length + pendingFaltas.length + pendingPontos.length;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -241,12 +290,11 @@ export default function AdminAprovacoes() {
               Centro de Aprovações
             </h1>
             <p className="text-muted-foreground text-lg">
-              Gerir pedidos de férias e justificações de faltas
+              Gerir pedidos de férias, justificações de faltas e registos de ponto
             </p>
           </div>
           
-          {/* Quick Stats */}
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap">
             <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-background/80 backdrop-blur border border-border/50">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                 <Calendar className="h-5 w-5 text-primary" />
@@ -263,6 +311,15 @@ export default function AdminAprovacoes() {
               <div>
                 <p className="text-2xl font-bold">{pendingFaltas.length}</p>
                 <p className="text-xs text-muted-foreground">Faltas</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-background/80 backdrop-blur border border-border/50">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <Timer className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{pendingPontos.length}</p>
+                <p className="text-xs text-muted-foreground">Ponto</p>
               </div>
             </div>
           </div>
@@ -292,6 +349,18 @@ export default function AdminAprovacoes() {
             {pendingFaltas.length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
                 {pendingFaltas.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger 
+            value="ponto" 
+            className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            <Timer className="h-4 w-4" />
+            Ponto
+            {pendingPontos.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
+                {pendingPontos.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -507,6 +576,117 @@ export default function AdminAprovacoes() {
                   </p>
                   <p className="text-sm text-muted-foreground/70 mt-1">
                     As justificações aparecem aqui quando submetidas
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Ponto Tab */}
+        <TabsContent value="ponto">
+          <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-border/50">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20">
+                  <Timer className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold">Registos de Ponto Manuais</h2>
+                  <p className="text-sm text-muted-foreground">{pontos.length} registos no total</p>
+                </div>
+              </div>
+            </div>
+            
+            <div className="p-6">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : pontos.length > 0 ? (
+                <div className="space-y-4">
+                  {pontos.map((item, index) => {
+                    const statusConfig = getStatusConfig(item.status);
+                    const StatusIcon = statusConfig.icon;
+                    
+                    return (
+                      <div
+                        key={item.id}
+                        className="group flex items-start justify-between p-5 rounded-xl bg-muted/20 border border-border/50 hover:border-border transition-all duration-300"
+                        style={{ animationDelay: `${index * 50}ms` }}
+                      >
+                        <div className="flex items-start gap-4">
+                          <Avatar className="h-12 w-12 ring-2 ring-background shadow-md">
+                            <AvatarFallback className="bg-gradient-to-br from-primary/30 to-primary/10 text-primary font-semibold">
+                              {getInitials(item.profile?.nome || 'U')}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-semibold text-base">{item.profile?.nome}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(new Date(item.timestamp), "EEEE, d 'de' MMMM 'de' yyyy", { locale: pt })}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge variant="outline" className={item.tipo === 'entrada' ? 'bg-success/10 text-success border-success/30' : 'bg-primary/10 text-primary border-primary/30'}>
+                                {item.tipo === 'entrada' ? 'Entrada' : 'Saída'}
+                              </Badge>
+                              <span className="text-sm font-medium">
+                                às {format(new Date(item.timestamp), 'HH:mm')}
+                              </span>
+                            </div>
+                            {item.observacoes && (
+                              <p className="text-sm mt-2 text-foreground/80">{item.observacoes}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-4">
+                          <Badge 
+                            variant="outline"
+                            className={statusConfig.className}
+                          >
+                            <StatusIcon className="mr-1.5 h-3.5 w-3.5" />
+                            {statusConfig.label}
+                          </Badge>
+                          {item.status === 'pendente' && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-10 w-10 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30 transition-all"
+                                onClick={() => handlePontoAction(item.id, 'rejeitado')}
+                                disabled={processingId === item.id}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                className="h-10 w-10 rounded-xl bg-success hover:bg-success/90 text-white transition-all"
+                                onClick={() => handlePontoAction(item.id, 'aprovado')}
+                                disabled={processingId === item.id}
+                              >
+                                {processingId === item.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-muted/50 mb-4">
+                    <Timer className="h-10 w-10 text-muted-foreground/50" />
+                  </div>
+                  <p className="text-lg font-medium text-muted-foreground">
+                    Não existem registos de ponto manuais
+                  </p>
+                  <p className="text-sm text-muted-foreground/70 mt-1">
+                    Os pedidos aparecem aqui quando submetidos
                   </p>
                 </div>
               )}

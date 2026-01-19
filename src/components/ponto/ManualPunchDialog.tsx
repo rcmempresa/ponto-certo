@@ -78,12 +78,19 @@ export function ManualPunchDialog({
       const entryTimestamp = new Date(`${formData.data}T${formData.horaEntrada}:00`);
       const exitTimestamp = new Date(`${formData.data}T${formData.horaSaida}:00`);
 
+      // For employees, set status as 'pendente'. For admins, set as 'aprovado'
+      const status = isAdmin ? 'aprovado' : 'pendente';
+      const manualFlag = true;
+
       // Insert entry record
       const { error: entryError } = await supabase.from('ponto').insert({
         user_id: userId,
         tipo: 'entrada',
         timestamp: entryTimestamp.toISOString(),
         localizacao: formData.motivo ? `Manual: ${formData.motivo}` : 'Registo manual',
+        status,
+        manual: manualFlag,
+        observacoes: formData.motivo || null,
       });
 
       if (entryError) throw entryError;
@@ -94,13 +101,18 @@ export function ManualPunchDialog({
         tipo: 'saida',
         timestamp: exitTimestamp.toISOString(),
         localizacao: formData.motivo ? `Manual: ${formData.motivo}` : 'Registo manual',
+        status,
+        manual: manualFlag,
+        observacoes: formData.motivo || null,
       });
 
       if (exitError) throw exitError;
 
       toast({
-        title: 'Picagem registada',
-        description: `Entrada às ${formData.horaEntrada} e saída às ${formData.horaSaida} registadas com sucesso.`,
+        title: isAdmin ? 'Picagem registada' : 'Pedido enviado',
+        description: isAdmin 
+          ? `Entrada às ${formData.horaEntrada} e saída às ${formData.horaSaida} registadas com sucesso.`
+          : 'O seu pedido foi enviado para aprovação pelo administrador.',
       });
 
       onOpenChange(false);
@@ -139,7 +151,7 @@ export function ManualPunchDialog({
           <DialogDescription>
             {isAdmin && userName
               ? `Adicionar registo de horas para ${userName}`
-              : 'Adicione as horas que trabalhou neste dia'}
+              : 'O seu pedido será enviado para aprovação'}
           </DialogDescription>
         </DialogHeader>
 

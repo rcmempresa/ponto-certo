@@ -176,6 +176,9 @@ export type Database = {
         Row: {
           id: string
           localizacao: string | null
+          manual: boolean
+          observacoes: string | null
+          status: string
           timestamp: string
           tipo: Database["public"]["Enums"]["ponto_tipo"]
           user_id: string
@@ -183,6 +186,9 @@ export type Database = {
         Insert: {
           id?: string
           localizacao?: string | null
+          manual?: boolean
+          observacoes?: string | null
+          status?: string
           timestamp?: string
           tipo: Database["public"]["Enums"]["ponto_tipo"]
           user_id: string
@@ -190,6 +196,9 @@ export type Database = {
         Update: {
           id?: string
           localizacao?: string | null
+          manual?: boolean
+          observacoes?: string | null
+          status?: string
           timestamp?: string
           tipo?: Database["public"]["Enums"]["ponto_tipo"]
           user_id?: string
