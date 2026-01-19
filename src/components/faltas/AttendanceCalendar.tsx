@@ -3,7 +3,6 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import {
   Tooltip,
   TooltipContent,
@@ -38,19 +37,6 @@ import { ManualPunchDialog } from '@/components/ponto/ManualPunchDialog';
 
 const MINIMUM_HOURS = 8;
 
-interface PontoRecord {
-  id: string;
-  tipo: 'entrada' | 'saida';
-  timestamp: string;
-}
-
-interface FaltaRecord {
-  id: string;
-  data: string;
-  status: 'pendente' | 'aprovado' | 'rejeitado';
-  motivo: string;
-}
-
 interface DayStatus {
   date: Date;
   hoursWorked: number;
@@ -65,6 +51,7 @@ interface DayStatus {
   isFuture: boolean;
   isToday: boolean;
   hasNoRecords: boolean;
+  hasPendingPonto: boolean;
 }
 
 interface AttendanceCalendarProps {
@@ -92,7 +79,6 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
     const monthStart = startOfMonth(currentMonth);
     const monthEnd = endOfMonth(currentMonth);
 
-    // Fetch ponto records for the month
     const { data: pontoData } = await supabase
       .from('ponto')
       .select('*')
@@ -101,7 +87,6 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
       .lte('timestamp', monthEnd.toISOString())
       .order('timestamp', { ascending: true });
 
-    // Fetch faltas for the month
     const { data: faltasData } = await supabase
       .from('faltas')
       .select('*')
@@ -109,7 +94,6 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
       .gte('data', format(monthStart, 'yyyy-MM-dd'))
       .lte('data', format(monthEnd, 'yyyy-MM-dd'));
 
-    // Calculate status for each day
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
     const today = new Date();
 
@@ -120,16 +104,17 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
       const isFutureDay = isAfter(day, today);
       const isTodayDay = isSameDay(day, today);
 
-      // Find ponto records for this day
-      const dayRecords = (pontoData || []).filter((record) =>
+      const dayRecords = (pontoData || []).filter((record: any) =>
         isSameDay(new Date(record.timestamp), day)
       );
+      
+      const approvedRecords = dayRecords.filter((record: any) => record.status === 'aprovado');
+      const hasPendingPonto = dayRecords.some((record: any) => record.status === 'pendente');
 
-      // Calculate hours worked
       let hoursWorked = 0;
       let entryTime: Date | null = null;
 
-      for (const record of dayRecords) {
+      for (const record of approvedRecords) {
         if (record.tipo === 'entrada') {
           entryTime = new Date(record.timestamp);
         } else if (record.tipo === 'saida' && entryTime) {
@@ -138,20 +123,17 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
         }
       }
 
-      // If currently working (on today), add current time
       if (entryTime && isTodayDay) {
         hoursWorked += (today.getTime() - entryTime.getTime()) / 1000 / 3600;
       }
 
       hoursWorked = Math.round(hoursWorked * 10) / 10;
 
-      // Check if there's a falta for this day
       const falta = (faltasData || []).find(
-        (f) => f.data === format(day, 'yyyy-MM-dd')
+        (f: any) => f.data === format(day, 'yyyy-MM-dd')
       );
 
-      // Determine if day is complete or incomplete
-      const hasAnyRecords = dayRecords.length > 0;
+      const hasApprovedRecords = approvedRecords.length > 0;
       const isComplete = hoursWorked >= MINIMUM_HOURS;
       const isIncomplete =
         !isWeekendDay &&
@@ -159,7 +141,8 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
         !isFutureDay &&
         !isTodayDay &&
         !isComplete &&
-        (hasAnyRecords || (!hasAnyRecords && isBefore(day, today)));
+        !hasPendingPonto &&
+        (hasApprovedRecords || (!hasApprovedRecords && isBefore(day, today)));
 
       return {
         date: day,
@@ -174,7 +157,8 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
         isWeekend: isWeekendDay,
         isFuture: isFutureDay,
         isToday: isTodayDay,
-        hasNoRecords: !hasAnyRecords && !isWeekendDay && !isHolidayDay && !isFutureDay && !isTodayDay,
+        hasNoRecords: !hasApprovedRecords && !hasPendingPonto && !isWeekendDay && !isHolidayDay && !isFutureDay && !isTodayDay,
+        hasPendingPonto,
       };
     });
 
@@ -183,34 +167,22 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
   };
 
   const getDayClass = (status: DayStatus) => {
-    if (status.isWeekend || status.isHoliday) {
-      return 'bg-muted/50 text-muted-foreground';
-    }
-    if (status.isFuture) {
-      return 'bg-transparent text-muted-foreground/50';
-    }
+    if (status.isWeekend || status.isHoliday) return 'bg-muted/50 text-muted-foreground';
+    if (status.isFuture) return 'bg-transparent text-muted-foreground/50';
+    if (status.hasPendingPonto) return 'bg-primary/20 text-primary border-primary/50';
     if (status.hasFalta) {
-      if (status.faltaStatus === 'aprovado') {
-        return 'bg-success/20 text-success-foreground border-success/50';
-      }
-      if (status.faltaStatus === 'rejeitado') {
-        return 'bg-destructive/20 text-destructive border-destructive/50';
-      }
+      if (status.faltaStatus === 'aprovado') return 'bg-success/20 text-success-foreground border-success/50';
+      if (status.faltaStatus === 'rejeitado') return 'bg-destructive/20 text-destructive border-destructive/50';
       return 'bg-warning/20 text-warning-foreground border-warning/50';
     }
-    if (status.isIncomplete) {
-      return 'bg-destructive/10 text-destructive border-destructive/30 cursor-pointer hover:bg-destructive/20';
-    }
-    if (status.isComplete) {
-      return 'bg-success/10 text-success border-success/30';
-    }
-    if (status.isToday) {
-      return 'bg-primary/10 text-primary border-primary/50';
-    }
+    if (status.isIncomplete) return 'bg-destructive/10 text-destructive border-destructive/30 cursor-pointer hover:bg-destructive/20';
+    if (status.isComplete) return 'bg-success/10 text-success border-success/30';
+    if (status.isToday) return 'bg-primary/10 text-primary border-primary/50';
     return 'bg-transparent';
   };
 
   const getDayIcon = (status: DayStatus) => {
+    if (status.hasPendingPonto) return <Clock className="h-3 w-3 text-primary" />;
     if (status.hasFalta) {
       if (status.faltaStatus === 'aprovado') return <CheckCircle2 className="h-3 w-3 text-success" />;
       if (status.faltaStatus === 'rejeitado') return <AlertCircle className="h-3 w-3 text-destructive" />;
@@ -225,31 +197,16 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
     if (status.isHoliday) return `Feriado: ${status.holidayName}`;
     if (status.isWeekend) return 'Fim de semana';
     if (status.isFuture) return 'Dia futuro';
+    if (status.hasPendingPonto) return 'Registo de horas pendente de aprovação';
     if (status.hasFalta) {
-      const statusLabel = {
-        pendente: 'Pendente',
-        aprovado: 'Aprovada',
-        rejeitado: 'Rejeitada',
-      }[status.faltaStatus || 'pendente'];
-      return `Falta justificada (${statusLabel}): ${status.faltaMotivo}`;
+      const label = { pendente: 'Pendente', aprovado: 'Aprovada', rejeitado: 'Rejeitada' }[status.faltaStatus || 'pendente'];
+      return `Falta justificada (${label}): ${status.faltaMotivo}`;
     }
-    if (status.isIncomplete) {
-      return `${status.hoursWorked}h trabalhadas (mín. ${MINIMUM_HOURS}h) - Clique para opções`;
-    }
-    if (status.isComplete) {
-      return `${status.hoursWorked}h trabalhadas ✓`;
-    }
-    if (status.isToday) {
-      return `Hoje: ${status.hoursWorked}h até agora`;
-    }
-    if (status.hasNoRecords) {
-      return 'Sem registos - Clique para adicionar horas';
-    }
+    if (status.isIncomplete) return `${status.hoursWorked}h trabalhadas (mín. ${MINIMUM_HOURS}h) - Clique para opções`;
+    if (status.isComplete) return `${status.hoursWorked}h trabalhadas ✓`;
+    if (status.isToday) return `Hoje: ${status.hoursWorked}h até agora`;
+    if (status.hasNoRecords) return 'Sem registos - Clique para adicionar horas';
     return '';
-  };
-
-  const handleDayClick = (status: DayStatus) => {
-    // Allow clicking on incomplete days without falta to show options
   };
 
   const handleAddPunch = (date: Date) => {
@@ -257,19 +214,12 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
     setPunchDialogOpen(true);
   };
 
-  const handlePunchSuccess = () => {
-    fetchMonthData();
-  };
-
-  // Get calendar grid
   const monthStart = startOfMonth(currentMonth);
   const monthEnd = endOfMonth(currentMonth);
   const calendarStart = startOfWeek(monthStart, { weekStartsOn: 1 });
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const calendarDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
-
   const weekDays = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-
   const incompleteDays = dayStatuses.filter((s) => s.isIncomplete).length;
 
   return (
@@ -278,22 +228,13 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
         <div className="flex items-center justify-between">
           <CardTitle className="text-lg font-medium">Calendário de Presenças</CardTitle>
           <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}
-            >
+            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(subMonths(currentMonth, 1))}>
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <span className="text-sm font-medium min-w-[120px] text-center">
               {format(currentMonth, 'MMMM yyyy', { locale: pt })}
             </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setCurrentMonth(addMonths(currentMonth, 1))}
-              disabled={isAfter(addMonths(currentMonth, 1), new Date())}
-            >
+            <Button variant="ghost" size="icon" onClick={() => setCurrentMonth(addMonths(currentMonth, 1))} disabled={isAfter(addMonths(currentMonth, 1), new Date())}>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -312,43 +253,26 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
           </div>
         ) : (
           <>
-            {/* Week days header */}
             <div className="grid grid-cols-7 gap-1 mb-2">
               {weekDays.map((day) => (
-                <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">
-                  {day}
-                </div>
+                <div key={day} className="text-center text-xs font-medium text-muted-foreground py-2">{day}</div>
               ))}
             </div>
-
-            {/* Calendar grid */}
             <div className="grid grid-cols-7 gap-1">
               {calendarDays.map((day) => {
                 const status = dayStatuses.find((s) => isSameDay(s.date, day));
                 const isCurrentMonth = isSameMonth(day, currentMonth);
-                const canAddPunch = status && !status.isFuture && !status.isWeekend && !status.isHoliday;
                 const showOptions = status && (status.isIncomplete || status.hasNoRecords) && !status.hasFalta;
 
                 if (!isCurrentMonth) {
-                  return (
-                    <div
-                      key={day.toISOString()}
-                      className="aspect-square p-1 text-center text-xs text-muted-foreground/30"
-                    >
-                      {format(day, 'd')}
-                    </div>
-                  );
+                  return <div key={day.toISOString()} className="aspect-square p-1 text-center text-xs text-muted-foreground/30">{format(day, 'd')}</div>;
                 }
 
                 if (showOptions) {
                   return (
                     <DropdownMenu key={day.toISOString()}>
                       <DropdownMenuTrigger asChild>
-                        <button
-                          className={`aspect-square p-1 rounded-lg border text-center text-xs font-medium transition-colors ${
-                            getDayClass(status)
-                          } ${status.isToday ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-                        >
+                        <button className={`aspect-square p-1 rounded-lg border text-center text-xs font-medium transition-colors ${getDayClass(status)} ${status.isToday ? 'ring-2 ring-primary ring-offset-1' : ''}`}>
                           <div className="flex flex-col items-center justify-center h-full">
                             <span>{format(day, 'd')}</span>
                             {getDayIcon(status)}
@@ -357,12 +281,10 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="center" className="w-48">
                         <DropdownMenuItem onClick={() => handleAddPunch(day)}>
-                          <Plus className="mr-2 h-4 w-4 text-primary" />
-                          Registar horas
+                          <Plus className="mr-2 h-4 w-4 text-primary" />Registar horas
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onJustifyDay(format(day, 'yyyy-MM-dd'))}>
-                          <FileText className="mr-2 h-4 w-4 text-warning" />
-                          Justificar falta
+                          <FileText className="mr-2 h-4 w-4 text-warning" />Justificar falta
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
@@ -373,58 +295,36 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
                   <TooltipProvider key={day.toISOString()}>
                     <Tooltip>
                       <TooltipTrigger asChild>
-                        <button
-                          disabled
-                          className={`aspect-square p-1 rounded-lg border text-center text-xs font-medium transition-colors ${
-                            status ? getDayClass(status) : ''
-                          } ${status?.isToday ? 'ring-2 ring-primary ring-offset-1' : ''}`}
-                        >
+                        <button disabled className={`aspect-square p-1 rounded-lg border text-center text-xs font-medium transition-colors ${status ? getDayClass(status) : ''} ${status?.isToday ? 'ring-2 ring-primary ring-offset-1' : ''}`}>
                           <div className="flex flex-col items-center justify-center h-full">
                             <span>{format(day, 'd')}</span>
                             {status && getDayIcon(status)}
                           </div>
                         </button>
                       </TooltipTrigger>
-                      <TooltipContent side="top" className="text-xs max-w-[200px]">
-                        {status && getTooltipContent(status)}
-                      </TooltipContent>
+                      <TooltipContent side="top" className="text-xs max-w-[200px]">{status && getTooltipContent(status)}</TooltipContent>
                     </Tooltip>
                   </TooltipProvider>
                 );
               })}
             </div>
-
-            {/* Legend */}
             <div className="flex flex-wrap gap-4 mt-4 pt-4 border-t text-xs text-muted-foreground">
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded bg-success/20 border border-success/50" />
-                <span>Completo (≥8h)</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded bg-destructive/10 border border-destructive/30" />
-                <span>Incompleto</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded bg-warning/20 border border-warning/50" />
-                <span>Falta pendente</span>
-              </div>
-              <div className="flex items-center gap-1.5">
-                <div className="h-3 w-3 rounded bg-muted/50" />
-                <span>Feriado/Fim-de-semana</span>
-              </div>
+              <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-success/20 border border-success/50" /><span>Completo (≥8h)</span></div>
+              <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-destructive/10 border border-destructive/30" /><span>Incompleto</span></div>
+              <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-primary/20 border border-primary/50" /><span>Ponto pendente</span></div>
+              <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-warning/20 border border-warning/50" /><span>Falta pendente</span></div>
+              <div className="flex items-center gap-1.5"><div className="h-3 w-3 rounded bg-muted/50" /><span>Feriado/Fim-de-semana</span></div>
             </div>
           </>
         )}
       </CardContent>
-
-      {/* Manual Punch Dialog */}
       {user && (
         <ManualPunchDialog
           open={punchDialogOpen}
           onOpenChange={setPunchDialogOpen}
           userId={user.id}
           selectedDate={selectedDateForPunch}
-          onSuccess={handlePunchSuccess}
+          onSuccess={fetchMonthData}
         />
       )}
     </Card>
