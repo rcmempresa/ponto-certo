@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, Search, Loader2, Plus, ChevronLeft, ChevronRight, Calendar, User } from 'lucide-react';
+import { Clock, Search, Loader2, Plus, ChevronLeft, ChevronRight, Calendar, User, Check, X, AlertCircle, Timer } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -49,6 +49,13 @@ interface PontoRecord {
   tipo: 'entrada' | 'saida';
   timestamp: string;
   localizacao: string | null;
+  status?: string;
+  manual?: boolean;
+  observacoes?: string | null;
+}
+
+interface PendingPonto extends PontoRecord {
+  profile?: Profile;
 }
 
 interface DaySummary {
@@ -65,14 +72,17 @@ export default function AdminPonto() {
   const [selectedUser, setSelectedUser] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [pontoData, setPontoData] = useState<PontoRecord[]>([]);
+  const [pendingPontos, setPendingPontos] = useState<PendingPonto[]>([]);
   const [daySummaries, setDaySummaries] = useState<DaySummary[]>([]);
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [searchQuery, setSearchQuery] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
+  const [processingId, setProcessingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchProfiles();
+    fetchPendingPontos();
   }, []);
 
   useEffect(() => {
@@ -106,6 +116,7 @@ export default function AdminPonto() {
       .from('ponto')
       .select('*')
       .eq('user_id', selectedUser)
+      .eq('status', 'aprovado')
       .gte('timestamp', monthStart.toISOString())
       .lte('timestamp', monthEnd.toISOString())
       .order('timestamp', { ascending: true });
@@ -114,6 +125,59 @@ export default function AdminPonto() {
       setPontoData(data);
       calculateDaySummaries(data, monthStart, monthEnd);
     }
+  };
+
+  const fetchPendingPontos = async () => {
+    const { data: pontoData } = await supabase
+      .from('ponto')
+      .select('*')
+      .eq('manual', true)
+      .eq('status', 'pendente')
+      .order('timestamp', { ascending: false });
+
+    if (pontoData) {
+      const userIds = [...new Set(pontoData.map((p) => p.user_id))];
+      const { data: profilesData } = await supabase
+        .from('profiles')
+        .select('id, nome, email, cargo')
+        .in('id', userIds);
+
+      const pontoWithProfiles = pontoData.map((p) => ({
+        ...p,
+        profile: profilesData?.find((pr) => pr.id === p.user_id),
+      }));
+      setPendingPontos(pontoWithProfiles);
+    }
+  };
+
+  const handlePontoAction = async (id: string, action: 'aprovado' | 'rejeitado') => {
+    setProcessingId(id);
+
+    const { error } = await supabase
+      .from('ponto')
+      .update({ status: action })
+      .eq('id', id);
+
+    if (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível processar o pedido.',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: action === 'aprovado' ? 'Ponto aprovado' : 'Ponto rejeitado',
+        description: action === 'aprovado' 
+          ? 'O registo foi aprovado e já aparece no calendário do colaborador.'
+          : 'O colaborador será notificado.',
+      });
+      fetchPendingPontos();
+      if (selectedUser) {
+        fetchPontoData();
+      }
+    }
+
+    setProcessingId(null);
   };
 
   const calculateDaySummaries = (records: PontoRecord[], monthStart: Date, monthEnd: Date) => {
@@ -193,7 +257,7 @@ export default function AdminPonto() {
           </div>
 
           {/* Quick Stats */}
-          <div className="flex gap-4">
+          <div className="flex gap-4 flex-wrap">
             <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-background/80 backdrop-blur border border-border/50">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                 <Clock className="h-5 w-5 text-primary" />
@@ -212,9 +276,101 @@ export default function AdminPonto() {
                 <p className="text-xs text-muted-foreground">Dias trabalhados</p>
               </div>
             </div>
+            {pendingPontos.length > 0 && (
+              <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-warning/10 backdrop-blur border border-warning/30">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-warning/20">
+                  <AlertCircle className="h-5 w-5 text-warning" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-warning">{pendingPontos.length}</p>
+                  <p className="text-xs text-muted-foreground">Pendentes</p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
+
+      {/* Pending Approvals Section */}
+      {pendingPontos.length > 0 && (
+        <Card className="border-warning/30 bg-warning/5">
+          <CardHeader className="pb-4">
+            <CardTitle className="text-lg font-medium flex items-center gap-2">
+              <Timer className="h-5 w-5 text-warning" />
+              Pedidos Pendentes de Aprovação
+              <Badge variant="secondary" className="ml-2 bg-warning/20 text-warning">
+                {pendingPontos.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {pendingPontos.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between p-4 rounded-xl bg-background border border-border/50"
+                >
+                  <div className="flex items-center gap-4">
+                    <Avatar className="h-10 w-10 ring-2 ring-background shadow-md">
+                      <AvatarFallback className="bg-gradient-to-br from-primary/30 to-primary/10 text-primary font-semibold text-sm">
+                        {getInitials(item.profile?.nome || 'U')}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div>
+                      <p className="font-medium">{item.profile?.nome || 'Colaborador'}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {format(new Date(item.timestamp), "d 'de' MMMM 'de' yyyy", { locale: pt })}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-2 ml-4">
+                      <Badge 
+                        variant="outline" 
+                        className={item.tipo === 'entrada' 
+                          ? 'bg-success/10 text-success border-success/30' 
+                          : 'bg-primary/10 text-primary border-primary/30'
+                        }
+                      >
+                        {item.tipo === 'entrada' ? 'Entrada' : 'Saída'}
+                      </Badge>
+                      <span className="text-sm font-medium">
+                        às {format(new Date(item.timestamp), 'HH:mm')}
+                      </span>
+                    </div>
+                    {item.observacoes && (
+                      <span className="text-sm text-muted-foreground ml-2">
+                        — {item.observacoes}
+                      </span>
+                    )}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      size="icon"
+                      variant="outline"
+                      className="h-9 w-9 rounded-lg text-destructive hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30"
+                      onClick={() => handlePontoAction(item.id, 'rejeitado')}
+                      disabled={processingId === item.id}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      className="h-9 w-9 rounded-lg bg-success hover:bg-success/90 text-white"
+                      onClick={() => handlePontoAction(item.id, 'aprovado')}
+                      disabled={processingId === item.id}
+                    >
+                      {processingId === item.id ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Check className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* User Selection & Month Navigation */}
       <div className="flex flex-col md:flex-row gap-4">
