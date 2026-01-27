@@ -34,6 +34,7 @@ import {
 import { pt } from 'date-fns/locale';
 import { isHoliday, getHolidayName } from '@/lib/holidays';
 import { ManualPunchDialog } from '@/components/ponto/ManualPunchDialog';
+import { calculateWorkHours, hasIncompleteEntry } from '@/lib/workHoursCalculator';
 
 const MINIMUM_HOURS = 8;
 
@@ -52,6 +53,7 @@ interface DayStatus {
   isToday: boolean;
   hasNoRecords: boolean;
   hasPendingPonto: boolean;
+  hasIncompleteEntry: boolean;
 }
 
 interface AttendanceCalendarProps {
@@ -111,23 +113,10 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
       const approvedRecords = dayRecords.filter((record: any) => record.status === 'aprovado');
       const hasPendingPonto = dayRecords.some((record: any) => record.status === 'pendente');
 
-      let hoursWorked = 0;
-      let entryTime: Date | null = null;
-
-      for (const record of approvedRecords) {
-        if (record.tipo === 'entrada') {
-          entryTime = new Date(record.timestamp);
-        } else if (record.tipo === 'saida' && entryTime) {
-          hoursWorked += (new Date(record.timestamp).getTime() - entryTime.getTime()) / 1000 / 3600;
-          entryTime = null;
-        }
-      }
-
-      if (entryTime && isTodayDay) {
-        hoursWorked += (today.getTime() - entryTime.getTime()) / 1000 / 3600;
-      }
-
-      hoursWorked = Math.round(hoursWorked * 10) / 10;
+      // Calculate hours using centralized logic
+      // For past days without exit, hours are NOT counted (hasIncompleteEntry will be true)
+      const hoursWorked = calculateWorkHours(approvedRecords, isTodayDay, true);
+      const incompleteEntry = hasIncompleteEntry(approvedRecords);
 
       const falta = (faltasData || []).find(
         (f: any) => f.data === format(day, 'yyyy-MM-dd')
@@ -135,6 +124,11 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
 
       const hasApprovedRecords = approvedRecords.length > 0;
       const isComplete = hoursWorked >= MINIMUM_HOURS;
+      
+      // Day is incomplete if:
+      // - Not weekend/holiday/future/today
+      // - Either has incomplete entry (no exit) OR hours < 8
+      // - No pending ponto
       const isIncomplete =
         !isWeekendDay &&
         !isHolidayDay &&
@@ -159,6 +153,7 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
         isToday: isTodayDay,
         hasNoRecords: !hasApprovedRecords && !hasPendingPonto && !isWeekendDay && !isHolidayDay && !isFutureDay && !isTodayDay,
         hasPendingPonto,
+        hasIncompleteEntry: incompleteEntry && !isTodayDay, // Only flag past days with incomplete entries
       };
     });
 
@@ -202,6 +197,7 @@ export function AttendanceCalendar({ onJustifyDay }: AttendanceCalendarProps) {
       const label = { pendente: 'Pendente', aprovado: 'Aprovada', rejeitado: 'Rejeitada' }[status.faltaStatus || 'pendente'];
       return `Falta justificada (${label}): ${status.faltaMotivo}`;
     }
+    if (status.hasIncompleteEntry) return 'Entrada sem saída - Registe a hora de saída';
     if (status.isIncomplete) return `${status.hoursWorked}h trabalhadas (mín. ${MINIMUM_HOURS}h) - Clique para opções`;
     if (status.isComplete) return `${status.hoursWorked}h trabalhadas ✓`;
     if (status.isToday) return `Hoje: ${status.hoursWorked}h até agora`;

@@ -7,6 +7,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, differenceInSeconds, startOfDay, endOfDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { calculateWorkHours } from '@/lib/workHoursCalculator';
 
 type PontoTipo = 'entrada' | 'saida';
 
@@ -70,25 +71,15 @@ export function ClockWidget() {
     }
 
     if (data && data.length > 0) {
-      // Calculate total worked time
-      let totalSeconds = 0;
-      let entryTime: Date | null = null;
-
-      for (const record of data) {
-        if (record.tipo === 'entrada') {
-          entryTime = new Date(record.timestamp);
-        } else if (record.tipo === 'saida' && entryTime) {
-          totalSeconds += differenceInSeconds(new Date(record.timestamp), entryTime);
-          entryTime = null;
-        }
-      }
+      // Calculate hours using centralized logic (today allows ongoing work)
+      const hoursWorked = calculateWorkHours(data, true, false); // Don't round for display
+      const totalSeconds = Math.round(hoursWorked * 3600);
 
       // Check if currently working
       const lastRecord = data[data.length - 1];
       if (lastRecord.tipo === 'entrada') {
         setIsWorking(true);
         setLastEntry(new Date(lastRecord.timestamp));
-        totalSeconds += differenceInSeconds(new Date(), new Date(lastRecord.timestamp));
       } else {
         setIsWorking(false);
         setLastEntry(null);

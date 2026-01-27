@@ -6,8 +6,9 @@ import { WeeklyHoursChart } from '@/components/dashboard/WeeklyHoursChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, isSameDay, eachDayOfInterval } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { calculateWorkHours } from '@/lib/workHoursCalculator';
 
 interface PontoRecord {
   id: string;
@@ -55,27 +56,30 @@ export default function Dashboard() {
       .order('timestamp', { ascending: true });
 
     if (data) {
-      // Calculate unique days worked
-      const uniqueDays = new Set(
-        data.map((p) => format(new Date(p.timestamp), 'yyyy-MM-dd'))
-      );
-
-      // Calculate total hours
-      let totalSeconds = 0;
-      let entryTime: Date | null = null;
-
-      for (const record of data) {
-        if (record.tipo === 'entrada') {
-          entryTime = new Date(record.timestamp);
-        } else if (record.tipo === 'saida' && entryTime) {
-          totalSeconds += (new Date(record.timestamp).getTime() - entryTime.getTime()) / 1000;
-          entryTime = null;
+      const now = new Date();
+      const monthStart = startOfMonth(now);
+      const monthEnd = endOfMonth(now);
+      const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+      
+      // Calculate hours per day using centralized logic
+      let totalHours = 0;
+      let daysWithHours = 0;
+      
+      for (const day of days) {
+        const dayRecords = data.filter((p) => isSameDay(new Date(p.timestamp), day));
+        if (dayRecords.length > 0) {
+          const isToday = isSameDay(day, now);
+          const hours = calculateWorkHours(dayRecords, isToday, true);
+          if (hours > 0) {
+            totalHours += hours;
+            daysWithHours++;
+          }
         }
       }
 
       setMonthStats({
-        days: uniqueDays.size,
-        hours: Math.round(totalSeconds / 3600),
+        days: daysWithHours,
+        hours: totalHours,
       });
     }
   };

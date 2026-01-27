@@ -221,9 +221,8 @@ export function ManualPunchDialog({
                   const [entryH, entryM] = formData.horaEntrada.split(':').map(Number);
                   const [exitH, exitM] = formData.horaSaida.split(':').map(Number);
                   const totalMinutes = (exitH * 60 + exitM) - (entryH * 60 + entryM) - 60; // Subtract 1 hour for lunch
-                  const hours = Math.floor(totalMinutes / 60);
-                  const minutes = totalMinutes % 60;
-                  return totalMinutes > 0 ? `${hours}h ${minutes > 0 ? `${minutes}min` : ''}` : '0h';
+                  const hours = Math.floor(totalMinutes / 60); // Always round down to whole hours
+                  return totalMinutes > 0 ? `${hours}h` : '0h';
                 })()}
               </p>
             </div>

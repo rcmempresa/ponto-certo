@@ -35,6 +35,7 @@ import {
 } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { isHoliday } from '@/lib/holidays';
+import { calculateWorkHours } from '@/lib/workHoursCalculator';
 
 interface Profile {
   id: string;
@@ -182,25 +183,18 @@ export default function AdminPonto() {
 
   const calculateDaySummaries = (records: PontoRecord[], monthStart: Date, monthEnd: Date) => {
     const days = eachDayOfInterval({ start: monthStart, end: monthEnd });
+    const now = new Date();
 
     const summaries: DaySummary[] = days.map((day) => {
       const dayRecords = records.filter((r) => isSameDay(new Date(r.timestamp), day));
+      const isToday = isSameDay(day, now);
 
-      let hoursWorked = 0;
-      let entryTime: Date | null = null;
-
-      for (const record of dayRecords) {
-        if (record.tipo === 'entrada') {
-          entryTime = new Date(record.timestamp);
-        } else if (record.tipo === 'saida' && entryTime) {
-          hoursWorked += (new Date(record.timestamp).getTime() - entryTime.getTime()) / 1000 / 3600;
-          entryTime = null;
-        }
-      }
+      // Use centralized calculation - past days without exit get 0 hours
+      const hoursWorked = calculateWorkHours(dayRecords, isToday, true);
 
       return {
         date: day,
-        hoursWorked: Math.round(hoursWorked * 10) / 10,
+        hoursWorked,
         entries: dayRecords,
         isWeekend: isWeekend(day),
         isHoliday: isHoliday(day),

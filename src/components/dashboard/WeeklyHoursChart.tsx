@@ -6,6 +6,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 
 import { startOfWeek, endOfWeek, eachDayOfInterval, format, isSameDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Loader2 } from 'lucide-react';
+import { calculateWorkHours } from '@/lib/workHoursCalculator';
 
 interface PontoRecord {
   id: string;
@@ -58,32 +59,19 @@ export function WeeklyHoursChart() {
         isSameDay(new Date(record.timestamp), day)
       );
 
-      // Calculate hours for this day
-      let daySeconds = 0;
-      let entryTime: Date | null = null;
-
-      for (const record of dayRecords) {
-        if (record.tipo === 'entrada') {
-          entryTime = new Date(record.timestamp);
-        } else if (record.tipo === 'saida' && entryTime) {
-          daySeconds += (new Date(record.timestamp).getTime() - entryTime.getTime()) / 1000;
-          entryTime = null;
-        }
-      }
-
-      // If still working (entry without exit on today), add current time
-      if (entryTime && isSameDay(day, now)) {
-        daySeconds += (now.getTime() - entryTime.getTime()) / 1000;
-      }
-
-      const hours = Math.round((daySeconds / 3600) * 10) / 10; // Round to 1 decimal
+      const isToday = isSameDay(day, now);
+      
+      // Calculate hours using centralized logic
+      // For past days without exit, hours are NOT counted
+      // Only today allows counting ongoing work
+      const hours = calculateWorkHours(dayRecords, isToday, true);
       weekTotal += hours;
 
       return {
         day: format(day, 'EEE', { locale: pt }).charAt(0).toUpperCase() + format(day, 'EEE', { locale: pt }).slice(1, 3),
         fullDate: format(day, 'd MMM', { locale: pt }),
         hours,
-        isToday: isSameDay(day, now),
+        isToday,
       };
     });
 
