@@ -215,15 +215,15 @@ export function ManualPunchDialog({
           {/* Time Preview */}
           {formData.horaEntrada && formData.horaSaida && formData.horaEntrada < formData.horaSaida && (
             <div className="p-4 rounded-xl bg-muted/50 border border-border/50">
-              <p className="text-sm text-muted-foreground mb-1">Tempo de trabalho:</p>
+              <p className="text-sm text-muted-foreground mb-1">Tempo de trabalho (já com 1h de almoço descontada):</p>
               <p className="text-lg font-semibold text-primary">
                 {(() => {
                   const [entryH, entryM] = formData.horaEntrada.split(':').map(Number);
                   const [exitH, exitM] = formData.horaSaida.split(':').map(Number);
-                  const totalMinutes = (exitH * 60 + exitM) - (entryH * 60 + entryM);
+                  const totalMinutes = (exitH * 60 + exitM) - (entryH * 60 + entryM) - 60; // Subtract 1 hour for lunch
                   const hours = Math.floor(totalMinutes / 60);
                   const minutes = totalMinutes % 60;
-                  return `${hours}h ${minutes > 0 ? `${minutes}min` : ''}`;
+                  return totalMinutes > 0 ? `${hours}h ${minutes > 0 ? `${minutes}min` : ''}` : '0h';
                 })()}
               </p>
             </div>
