@@ -47,7 +47,7 @@ export function ManualPunchDialog({
   const [formData, setFormData] = useState({
     data: selectedDate || format(new Date(), 'yyyy-MM-dd'),
     horaEntrada: '09:00',
-    horaSaida: '18:00',
+    horaSaida: '17:00',
     motivo: '',
   });
 
