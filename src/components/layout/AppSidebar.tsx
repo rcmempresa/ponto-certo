@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clock, Calendar, FileText, FolderOpen, Users, CheckSquare, BarChart3, LogOut, ArrowLeftRight } from 'lucide-react';
+import { Clock, Calendar, FileText, FolderOpen, Users, CheckSquare, BarChart3, LogOut, ArrowLeftRight, Timer } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -22,6 +22,7 @@ const userMenuItems = [
   { title: 'Dashboard', url: '/dashboard', icon: Clock },
   { title: 'Férias', url: '/ferias', icon: Calendar },
   { title: 'Faltas', url: '/faltas', icon: FileText },
+  { title: 'Horas Extra', url: '/horas-extra', icon: Timer },
   { title: 'Documentos', url: '/documentos', icon: FolderOpen },
 ];
 
@@ -29,6 +30,7 @@ const adminMenuItems = [
   { title: 'Painel RH', url: '/admin', icon: BarChart3 },
   { title: 'Equipa', url: '/admin/equipa', icon: Users },
   { title: 'Ponto', url: '/admin/ponto', icon: Clock },
+  { title: 'Horas Extra', url: '/admin/horas-extra', icon: Timer },
   { title: 'Aprovações', url: '/admin/aprovacoes', icon: CheckSquare },
   { title: 'Documentos', url: '/admin/documentos', icon: FolderOpen },
 ];

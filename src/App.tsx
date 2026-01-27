@@ -10,12 +10,14 @@ import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
 import Ferias from "./pages/Ferias";
 import Faltas from "./pages/Faltas";
+import HorasExtra from "./pages/HorasExtra";
 import Documentos from "./pages/Documentos";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminEquipa from "./pages/admin/AdminEquipa";
 import AdminPonto from "./pages/admin/AdminPonto";
 import AdminAprovacoes from "./pages/admin/AdminAprovacoes";
 import AdminDocumentos from "./pages/admin/AdminDocumentos";
+import AdminHorasExtra from "./pages/admin/AdminHorasExtra";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -41,6 +43,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/ferias" element={<Ferias />} />
               <Route path="/faltas" element={<Faltas />} />
+              <Route path="/horas-extra" element={<HorasExtra />} />
               <Route path="/documentos" element={<Documentos />} />
               
               {/* Admin Routes */}
@@ -81,6 +84,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requireAdmin>
                     <AdminDocumentos />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/horas-extra"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminHorasExtra />
                   </ProtectedRoute>
                 }
               />
