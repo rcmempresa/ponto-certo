@@ -78,9 +78,12 @@ export type Database = {
           comprovativo_url: string | null
           created_at: string
           data: string
+          hora_fim: string | null
+          hora_inicio: string | null
           id: string
           motivo: string
           status: Database["public"]["Enums"]["request_status"]
+          tipo_falta: string
           updated_at: string
           user_id: string
         }
@@ -88,9 +91,12 @@ export type Database = {
           comprovativo_url?: string | null
           created_at?: string
           data: string
+          hora_fim?: string | null
+          hora_inicio?: string | null
           id?: string
           motivo: string
           status?: Database["public"]["Enums"]["request_status"]
+          tipo_falta?: string
           updated_at?: string
           user_id: string
         }
@@ -98,9 +104,12 @@ export type Database = {
           comprovativo_url?: string | null
           created_at?: string
           data?: string
+          hora_fim?: string | null
+          hora_inicio?: string | null
           id?: string
           motivo?: string
           status?: Database["public"]["Enums"]["request_status"]
+          tipo_falta?: string
           updated_at?: string
           user_id?: string
         }
