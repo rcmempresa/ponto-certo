@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
-import { FileText, Plus, Upload, Loader2, Calendar } from 'lucide-react';
+import { FileText, Plus, Loader2, Calendar, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,9 @@ interface FaltaRecord {
   motivo: string;
   comprovativo_url: string | null;
   status: 'pendente' | 'aprovado' | 'rejeitado';
+  tipo_falta: 'dia_inteiro' | 'parcial';
+  hora_inicio: string | null;
+  hora_fim: string | null;
   created_at: string;
 }
 
@@ -43,11 +47,14 @@ export default function Faltas() {
   const [formData, setFormData] = useState({
     data: '',
     motivo: '',
+    tipo_falta: 'dia_inteiro' as 'dia_inteiro' | 'parcial',
+    hora_inicio: '',
+    hora_fim: '',
   });
   const [file, setFile] = useState<File | null>(null);
 
   const handleJustifyDay = (date: string) => {
-    setFormData({ ...formData, data: date });
+    setFormData({ ...formData, data: date, tipo_falta: 'dia_inteiro', hora_inicio: '', hora_fim: '' });
     setDialogOpen(true);
   };
 
@@ -67,7 +74,10 @@ export default function Faltas() {
       .order('created_at', { ascending: false });
 
     if (data) {
-      setFaltas(data);
+      setFaltas(data.map(item => ({
+        ...item,
+        tipo_falta: item.tipo_falta as 'dia_inteiro' | 'parcial'
+      })));
     }
     setLoading(false);
   };
@@ -101,6 +111,9 @@ export default function Faltas() {
       motivo: formData.motivo,
       comprovativo_url: comprovanteUrl,
       status: 'pendente',
+      tipo_falta: formData.tipo_falta,
+      hora_inicio: formData.tipo_falta === 'parcial' ? formData.hora_inicio : null,
+      hora_fim: formData.tipo_falta === 'parcial' ? formData.hora_fim : null,
     });
 
     if (error) {
@@ -115,7 +128,7 @@ export default function Faltas() {
         description: 'A sua justificação foi enviada para aprovação.',
       });
       setDialogOpen(false);
-      setFormData({ data: '', motivo: '' });
+      setFormData({ data: '', motivo: '', tipo_falta: 'dia_inteiro', hora_inicio: '', hora_fim: '' });
       setFile(null);
       fetchFaltas();
       setCalendarKey((prev) => prev + 1); // Refresh calendar
@@ -168,6 +181,64 @@ export default function Faltas() {
                 />
               </div>
 
+              <div className="space-y-3">
+                <Label>Tipo de Falta</Label>
+                <RadioGroup
+                  value={formData.tipo_falta}
+                  onValueChange={(value: 'dia_inteiro' | 'parcial') => 
+                    setFormData({ ...formData, tipo_falta: value, hora_inicio: '', hora_fim: '' })
+                  }
+                  className="flex flex-col gap-3"
+                >
+                  <div className="flex items-center space-x-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors cursor-pointer">
+                    <RadioGroupItem value="dia_inteiro" id="dia_inteiro" />
+                    <Label htmlFor="dia_inteiro" className="flex-1 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Calendar className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">Dia Inteiro</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">Faltei o dia todo</p>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-3 rounded-lg border border-border p-3 hover:bg-muted/50 transition-colors cursor-pointer">
+                    <RadioGroupItem value="parcial" id="parcial" />
+                    <Label htmlFor="parcial" className="flex-1 cursor-pointer">
+                      <div className="flex items-center gap-2">
+                        <Clock className="h-4 w-4 text-muted-foreground" />
+                        <span className="font-medium">Horas Específicas</span>
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-0.5">Faltei apenas algumas horas</p>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </div>
+
+              {formData.tipo_falta === 'parcial' && (
+                <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg border border-border">
+                  <div className="space-y-2">
+                    <Label htmlFor="hora_inicio">Hora Início</Label>
+                    <Input
+                      id="hora_inicio"
+                      type="time"
+                      value={formData.hora_inicio}
+                      onChange={(e) => setFormData({ ...formData, hora_inicio: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="hora_fim">Hora Fim</Label>
+                    <Input
+                      id="hora_fim"
+                      type="time"
+                      value={formData.hora_fim}
+                      onChange={(e) => setFormData({ ...formData, hora_fim: e.target.value })}
+                    />
+                  </div>
+                  <p className="col-span-2 text-xs text-muted-foreground">
+                    Indique o período em que esteve ausente
+                  </p>
+                </div>
+              )}
+
               <div className="space-y-2">
                 <Label htmlFor="motivo">Motivo</Label>
                 <Textarea
@@ -197,7 +268,15 @@ export default function Faltas() {
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleSubmit} disabled={!formData.data || !formData.motivo || submitting}>
+              <Button 
+                onClick={handleSubmit} 
+                disabled={
+                  !formData.data || 
+                  !formData.motivo || 
+                  submitting ||
+                  (formData.tipo_falta === 'parcial' && (!formData.hora_inicio || !formData.hora_fim))
+                }
+              >
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -265,9 +344,23 @@ export default function Faltas() {
                   className="flex items-start justify-between py-3 border-b border-border last:border-0"
                 >
                   <div className="space-y-1">
-                    <p className="font-medium">
-                      {format(new Date(item.data), "d 'de' MMMM 'de' yyyy", { locale: pt })}
-                    </p>
+                    <div className="flex items-center gap-2">
+                      <p className="font-medium">
+                        {format(new Date(item.data), "d 'de' MMMM 'de' yyyy", { locale: pt })}
+                      </p>
+                      {item.tipo_falta === 'parcial' && item.hora_inicio && item.hora_fim && (
+                        <Badge variant="outline" className="text-xs">
+                          <Clock className="h-3 w-3 mr-1" />
+                          {item.hora_inicio.slice(0, 5)} - {item.hora_fim.slice(0, 5)}
+                        </Badge>
+                      )}
+                      {item.tipo_falta === 'dia_inteiro' && (
+                        <Badge variant="outline" className="text-xs">
+                          <Calendar className="h-3 w-3 mr-1" />
+                          Dia inteiro
+                        </Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground line-clamp-2">{item.motivo}</p>
                     {item.comprovativo_url && (
                       <a
