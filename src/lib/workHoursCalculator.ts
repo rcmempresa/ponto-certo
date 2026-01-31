@@ -10,28 +10,36 @@
 interface PontoRecord {
   tipo: 'entrada' | 'saida';
   timestamp: string;
+  status?: string;
 }
 
 /**
  * Calculate work hours for a set of records.
- * Only counts complete entry/exit pairs.
+ * Only counts complete entry/exit pairs from APPROVED records.
  * For today, allows counting ongoing work (entry without exit yet).
  * 
  * @param records - Array of ponto records for the day
  * @param isToday - Whether this is the current day (allows counting ongoing work)
  * @param roundToWholeHours - Whether to round down to whole hours (default: true)
+ * @param onlyApproved - Whether to only count approved records (default: true)
  * @returns Total hours worked (rounded to whole hours by default)
  */
 export function calculateWorkHours(
   records: PontoRecord[],
   isToday: boolean = false,
-  roundToWholeHours: boolean = true
+  roundToWholeHours: boolean = true,
+  onlyApproved: boolean = true
 ): number {
   let totalSeconds = 0;
   let entryTime: Date | null = null;
 
+  // Filter to only approved records if required
+  const filteredRecords = onlyApproved 
+    ? records.filter(r => !r.status || r.status === 'aprovado')
+    : records;
+
   // Sort records by timestamp to ensure proper pairing
-  const sortedRecords = [...records].sort((a, b) => 
+  const sortedRecords = [...filteredRecords].sort((a, b) => 
     new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
   );
 

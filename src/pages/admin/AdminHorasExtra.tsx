@@ -1,9 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Clock, Loader2, Check, X, Timer, User, Calendar, Plus } from 'lucide-react';
+import { Clock, Loader2, Check, X, Timer, User, Calendar, Plus, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -19,6 +22,25 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { OvertimeDialog } from '@/components/horas-extra/OvertimeDialog';
@@ -56,8 +78,19 @@ export default function AdminHorasExtra() {
   const [selectedUser, setSelectedUser] = useState<string>('all');
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedUserForDialog, setSelectedUserForDialog] = useState<string>('');
+  
+  // Edit state
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<HorasExtraRecord | null>(null);
+  const [editData, setEditData] = useState({
+    data: '',
+    hora_inicio: '',
+    hora_fim: '',
+    motivo: '',
+  });
 
   useEffect(() => {
     fetchProfiles();
@@ -166,6 +199,55 @@ export default function AdminHorasExtra() {
       fetchAllRecords();
     }
 
+    setProcessingId(null);
+  };
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    const { error } = await supabase.from('horas_extra').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Erro', description: 'Não foi possível eliminar.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Eliminado', description: 'O registo de horas extra foi eliminado.' });
+      fetchPendingRecords();
+      fetchAllRecords();
+    }
+    setDeletingId(null);
+  };
+
+  const openEditDialog = (record: HorasExtraRecord) => {
+    setSelectedRecord(record);
+    setEditData({
+      data: record.data,
+      hora_inicio: record.hora_inicio.slice(0, 5),
+      hora_fim: record.hora_fim.slice(0, 5),
+      motivo: record.motivo || '',
+    });
+    setEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!selectedRecord) return;
+    setProcessingId(selectedRecord.id);
+    
+    const { error } = await supabase
+      .from('horas_extra')
+      .update({
+        data: editData.data,
+        hora_inicio: editData.hora_inicio,
+        hora_fim: editData.hora_fim,
+        motivo: editData.motivo || null,
+      })
+      .eq('id', selectedRecord.id);
+
+    if (error) {
+      toast({ title: 'Erro', description: 'Não foi possível guardar.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Guardado', description: 'O registo foi atualizado.' });
+      setEditDialogOpen(false);
+      fetchPendingRecords();
+      fetchAllRecords();
+    }
     setProcessingId(null);
   };
 
@@ -415,6 +497,7 @@ export default function AdminHorasExtra() {
                   <TableHead>Duração</TableHead>
                   <TableHead>Motivo</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead className="text-right">Ações</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -448,6 +531,46 @@ export default function AdminHorasExtra() {
                       )}
                     </TableCell>
                     <TableCell>{getStatusBadge(record.status)}</TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-8 w-8"
+                          onClick={() => openEditDialog(record)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                        <AlertDialog>
+                          <AlertDialogTrigger asChild>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 text-destructive hover:text-destructive"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </AlertDialogTrigger>
+                          <AlertDialogContent>
+                            <AlertDialogHeader>
+                              <AlertDialogTitle>Eliminar registo?</AlertDialogTitle>
+                              <AlertDialogDescription>
+                                Esta ação não pode ser revertida.
+                              </AlertDialogDescription>
+                            </AlertDialogHeader>
+                            <AlertDialogFooter>
+                              <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                              <AlertDialogAction 
+                                onClick={() => handleDelete(record.id)}
+                                className="bg-destructive hover:bg-destructive/90"
+                              >
+                                {deletingId === record.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Eliminar'}
+                              </AlertDialogAction>
+                            </AlertDialogFooter>
+                          </AlertDialogContent>
+                        </AlertDialog>
+                      </div>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -470,6 +593,65 @@ export default function AdminHorasExtra() {
           }}
         />
       )}
+
+      {/* Edit Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Editar Horas Extra</DialogTitle>
+            <DialogDescription>
+              Alterar os dados do registo de {selectedRecord?.profile?.nome}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-data">Data</Label>
+              <Input
+                id="edit-data"
+                type="date"
+                value={editData.data}
+                onChange={(e) => setEditData({ ...editData, data: e.target.value })}
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="edit-hora-inicio">Hora Início</Label>
+                <Input
+                  id="edit-hora-inicio"
+                  type="time"
+                  value={editData.hora_inicio}
+                  onChange={(e) => setEditData({ ...editData, hora_inicio: e.target.value })}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="edit-hora-fim">Hora Fim</Label>
+                <Input
+                  id="edit-hora-fim"
+                  type="time"
+                  value={editData.hora_fim}
+                  onChange={(e) => setEditData({ ...editData, hora_fim: e.target.value })}
+                />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-motivo">Motivo</Label>
+              <Textarea
+                id="edit-motivo"
+                value={editData.motivo}
+                onChange={(e) => setEditData({ ...editData, motivo: e.target.value })}
+                rows={2}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleSaveEdit} disabled={processingId === selectedRecord?.id}>
+              {processingId === selectedRecord?.id ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Guardar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
