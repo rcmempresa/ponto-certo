@@ -5,7 +5,11 @@
  * 1. Hours are always rounded down to whole hours (8h 30min = 8h)
  * 2. Days without exit (saida) are NOT counted - only complete entry/exit pairs count
  * 3. For today only, if still working (entry without exit), calculate hours up to current time
+ * 4. 1 hour lunch break is automatically deducted from daily totals
  */
+
+// Lunch break deduction in hours
+const LUNCH_BREAK_HOURS = 1;
 
 interface PontoRecord {
   tipo: 'entrada' | 'saida';
@@ -17,12 +21,13 @@ interface PontoRecord {
  * Calculate work hours for a set of records.
  * Only counts complete entry/exit pairs from APPROVED records.
  * For today, allows counting ongoing work (entry without exit yet).
+ * Automatically deducts 1 hour for lunch break.
  * 
  * @param records - Array of ponto records for the day
  * @param isToday - Whether this is the current day (allows counting ongoing work)
  * @param roundToWholeHours - Whether to round down to whole hours (default: true)
  * @param onlyApproved - Whether to only count approved records (default: true)
- * @returns Total hours worked (rounded to whole hours by default)
+ * @returns Total hours worked (rounded to whole hours by default, with lunch deducted)
  */
 export function calculateWorkHours(
   records: PontoRecord[],
@@ -59,7 +64,12 @@ export function calculateWorkHours(
   }
   // Note: If there's an entry without exit on a past day, we DON'T count those hours
 
-  const hours = totalSeconds / 3600;
+  let hours = totalSeconds / 3600;
+
+  // Deduct lunch break (1 hour) if there are any hours worked
+  if (hours > 0) {
+    hours = Math.max(0, hours - LUNCH_BREAK_HOURS);
+  }
 
   if (roundToWholeHours) {
     return Math.floor(hours); // Always round down to whole hours
