@@ -61,7 +61,23 @@ interface DocumentPermission {
   user_id: string;
 }
 
-const CATEGORIAS = ['Geral', 'Regulamentos', 'Manuais', 'Políticas', 'Formulários'];
+const CATEGORIAS = [
+  'Geral',
+  'Regulamentos',
+  'Políticas',
+  'Formulários',
+  'Manuais de Eletricidade',
+  'Manuais de Telecomunicações',
+  'Manuais de Equipamentos de Telecomunicações',
+  'Manuais de Climatização',
+  'Manuais de Segurança de Trabalho',
+  'Comunicação da Empresa',
+  'Documentação da Empresa',
+  'Certidões',
+  'Seguros',
+  'Salários',
+  'Medicina de Trabalho',
+];
 
 export default function AdminDocumentos() {
   const { user } = useAuth();
