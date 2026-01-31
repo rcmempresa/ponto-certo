@@ -66,9 +66,9 @@ export function calculateWorkHours(
 
   let hours = totalSeconds / 3600;
 
-  // Deduct lunch break (1 hour) if there are any hours worked
-  if (hours > 0) {
-    hours = Math.max(0, hours - LUNCH_BREAK_HOURS);
+  // Deduct lunch break (1 hour) only if total hours is 9 or more
+  if (hours >= 9) {
+    hours = hours - LUNCH_BREAK_HOURS;
   }
 
   if (roundToWholeHours) {
