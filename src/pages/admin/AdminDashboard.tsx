@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Clock, CheckSquare, FileText, Sparkles, TrendingUp, Calendar, Activity } from 'lucide-react';
+import { Users, Clock, CheckSquare, FileText, Sparkles, TrendingUp, Calendar, Activity, Palmtree } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { StatsCard } from '@/components/dashboard/StatsCard';
@@ -24,6 +24,7 @@ export default function AdminDashboard() {
   const [activeWorkers, setActiveWorkers] = useState<ActiveWorker[]>([]);
   const [totalUsers, setTotalUsers] = useState(0);
   const [pendingCounts, setPendingCounts] = useState<PendingCounts>({ ferias: 0, faltas: 0 });
+  const [onVacationCount, setOnVacationCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
 
@@ -87,6 +88,19 @@ export default function AdminDashboard() {
       ferias: feriasPending || 0,
       faltas: faltasPending || 0,
     });
+
+    // Fetch employees currently on vacation (approved vacation that includes today)
+    const todayStr = format(today, 'yyyy-MM-dd');
+    const { data: onVacation } = await supabase
+      .from('ferias')
+      .select('user_id')
+      .eq('status', 'aprovado')
+      .lte('data_inicio', todayStr)
+      .gte('data_fim', todayStr);
+
+    // Count unique users on vacation
+    const uniqueUsersOnVacation = new Set(onVacation?.map(v => v.user_id) || []);
+    setOnVacationCount(uniqueUsersOnVacation.size);
 
     setLoading(false);
   };
@@ -157,7 +171,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Stats Grid - Responsive */}
-      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5">
         <StatsCard
           title="Colaboradores"
           value={totalUsers}
@@ -171,6 +185,13 @@ export default function AdminDashboard() {
           subtitle={isMobile ? "ativos" : "colaboradores ativos"}
           icon={Clock}
           variant="success"
+        />
+        <StatsCard
+          title={isMobile ? "De Férias" : "Em Férias Hoje"}
+          value={onVacationCount}
+          subtitle={isMobile ? "ausentes" : "colaboradores ausentes"}
+          icon={Palmtree}
+          variant="default"
         />
         <StatsCard
           title={isMobile ? "Férias" : "Férias Pendentes"}
