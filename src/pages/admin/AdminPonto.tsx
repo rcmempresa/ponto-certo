@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, Search, Loader2, Plus, ChevronLeft, ChevronRight, Calendar, User, Check, X, AlertCircle, Timer } from 'lucide-react';
+import { Clock, Search, Loader2, Plus, ChevronLeft, ChevronRight, Calendar, User, Check, X, AlertCircle, Timer, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -20,9 +20,21 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { ManualPunchDialog } from '@/components/ponto/ManualPunchDialog';
+import { EditPontoDialog } from '@/components/ponto/EditPontoDialog';
 import {
   format,
   startOfMonth,
@@ -80,6 +92,9 @@ export default function AdminPonto() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [processingId, setProcessingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedRecord, setSelectedRecord] = useState<PontoRecord | null>(null);
 
   useEffect(() => {
     fetchProfiles();
@@ -207,6 +222,24 @@ export default function AdminPonto() {
   const handleAddPunch = (date: Date) => {
     setSelectedDate(format(date, 'yyyy-MM-dd'));
     setDialogOpen(true);
+  };
+
+  const handleEditPonto = (record: PontoRecord) => {
+    setSelectedRecord(record);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeletePonto = async (id: string) => {
+    setDeletingId(id);
+    const { error } = await supabase.from('ponto').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Erro', description: 'Não foi possível eliminar o registo.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Eliminado', description: 'O registo de ponto foi eliminado.' });
+      fetchPendingPontos();
+      fetchPontoData();
+    }
+    setDeletingId(null);
   };
 
   const getInitials = (name: string) => {
@@ -485,15 +518,53 @@ export default function AdminPonto() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-1">
+                          <div className="flex flex-wrap gap-1">
                             {entries.map((e) => (
-                              <Badge
-                                key={e.id}
-                                variant="outline"
-                                className="bg-success/10 text-success border-success/30 mr-1"
-                              >
-                                {format(new Date(e.timestamp), 'HH:mm')}
-                              </Badge>
+                              <div key={e.id} className="flex items-center gap-1">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-success/10 text-success border-success/30"
+                                >
+                                  {format(new Date(e.timestamp), 'HH:mm')}
+                                </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                  onClick={() => handleEditPonto(e)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                      disabled={deletingId === e.id}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Eliminar registo?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta ação não pode ser desfeita. O registo de entrada será eliminado permanentemente.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeletePonto(e.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Eliminar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
                             ))}
                             {entries.length === 0 && (
                               <span className="text-muted-foreground text-sm">—</span>
@@ -501,15 +572,53 @@ export default function AdminPonto() {
                           </div>
                         </TableCell>
                         <TableCell>
-                          <div className="space-y-1">
+                          <div className="flex flex-wrap gap-1">
                             {exits.map((e) => (
-                              <Badge
-                                key={e.id}
-                                variant="outline"
-                                className="bg-destructive/10 text-destructive border-destructive/30 mr-1"
-                              >
-                                {format(new Date(e.timestamp), 'HH:mm')}
-                              </Badge>
+                              <div key={e.id} className="flex items-center gap-1">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-destructive/10 text-destructive border-destructive/30"
+                                >
+                                  {format(new Date(e.timestamp), 'HH:mm')}
+                                </Badge>
+                                <Button
+                                  variant="ghost"
+                                  size="icon"
+                                  className="h-6 w-6 text-muted-foreground hover:text-primary"
+                                  onClick={() => handleEditPonto(e)}
+                                >
+                                  <Pencil className="h-3 w-3" />
+                                </Button>
+                                <AlertDialog>
+                                  <AlertDialogTrigger asChild>
+                                    <Button
+                                      variant="ghost"
+                                      size="icon"
+                                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                                      disabled={deletingId === e.id}
+                                    >
+                                      <Trash2 className="h-3 w-3" />
+                                    </Button>
+                                  </AlertDialogTrigger>
+                                  <AlertDialogContent>
+                                    <AlertDialogHeader>
+                                      <AlertDialogTitle>Eliminar registo?</AlertDialogTitle>
+                                      <AlertDialogDescription>
+                                        Esta ação não pode ser desfeita. O registo de saída será eliminado permanentemente.
+                                      </AlertDialogDescription>
+                                    </AlertDialogHeader>
+                                    <AlertDialogFooter>
+                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                      <AlertDialogAction
+                                        onClick={() => handleDeletePonto(e.id)}
+                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                                      >
+                                        Eliminar
+                                      </AlertDialogAction>
+                                    </AlertDialogFooter>
+                                  </AlertDialogContent>
+                                </AlertDialog>
+                              </div>
                             ))}
                             {exits.length === 0 && (
                               <span className="text-muted-foreground text-sm">—</span>
@@ -557,6 +666,14 @@ export default function AdminPonto() {
         selectedDate={selectedDate}
         onSuccess={fetchPontoData}
         isAdmin={true}
+      />
+
+      {/* Edit Ponto Dialog */}
+      <EditPontoDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        record={selectedRecord}
+        onSuccess={fetchPontoData}
       />
     </div>
   );
