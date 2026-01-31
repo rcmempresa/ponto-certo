@@ -44,7 +44,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { OvertimeDialog } from '@/components/horas-extra/OvertimeDialog';
-import { formatOvertimeMinutes } from '@/lib/overtimeCalculator';
+import { formatOvertimeMinutes, calculateOvertimeMinutes, getOvertimeType } from '@/lib/overtimeCalculator';
 import { format, startOfMonth, endOfMonth, subMonths, addMonths } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
@@ -230,12 +230,19 @@ export default function AdminHorasExtra() {
     if (!selectedRecord) return;
     setProcessingId(selectedRecord.id);
     
+    // Recalculate overtime minutes based on new times
+    const selectedDateObj = new Date(editData.data + 'T12:00:00');
+    const newMinutosExtra = calculateOvertimeMinutes(selectedDateObj, editData.hora_inicio, editData.hora_fim);
+    const newTipoPeriodo = getOvertimeType(selectedDateObj);
+    
     const { error } = await supabase
       .from('horas_extra')
       .update({
         data: editData.data,
         hora_inicio: editData.hora_inicio,
         hora_fim: editData.hora_fim,
+        minutos_extra: newMinutosExtra,
+        tipo_periodo: newTipoPeriodo,
         motivo: editData.motivo || null,
       })
       .eq('id', selectedRecord.id);
