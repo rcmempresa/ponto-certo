@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Clock, CheckSquare, FileText, Sparkles, TrendingUp, Calendar, Activity, Palmtree } from 'lucide-react';
+import { Users, Clock, CheckSquare, FileText, Sparkles, TrendingUp, Calendar, Activity, Palmtree, UserX } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { StatsCard } from '@/components/dashboard/StatsCard';
@@ -25,6 +25,7 @@ export default function AdminDashboard() {
   const [totalUsers, setTotalUsers] = useState(0);
   const [pendingCounts, setPendingCounts] = useState<PendingCounts>({ ferias: 0, faltas: 0 });
   const [onVacationCount, setOnVacationCount] = useState(0);
+  const [notWorkingCount, setNotWorkingCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
 
@@ -49,26 +50,32 @@ export default function AdminDashboard() {
       .lte('timestamp', endOfDay(today).toISOString())
       .order('timestamp', { ascending: true });
 
-    if (todayPunches && profiles) {
-      // Group by user and find last punch
-      const userLastPunch: Record<string, { tipo: string; timestamp: string }> = {};
-      
+    // Group by user and find last punch
+    const userLastPunch: Record<string, { tipo: string; timestamp: string }> = {};
+    
+    if (todayPunches) {
       todayPunches.forEach((punch) => {
         userLastPunch[punch.user_id] = { tipo: punch.tipo, timestamp: punch.timestamp };
       });
+    }
 
-      // Filter users who are currently working (last punch was 'entrada')
-      const working = Object.entries(userLastPunch)
+    // Filter users who are currently working (last punch was 'entrada')
+    const workingUserIds = new Set(
+      Object.entries(userLastPunch)
         .filter(([_, punch]) => punch.tipo === 'entrada')
-        .map(([userId, punch]) => {
-          const profile = profiles.find((p) => p.id === userId);
-          return {
-            id: userId,
-            nome: profile?.nome || 'Colaborador',
-            cargo: profile?.cargo,
-            lastPunch: punch.timestamp,
-          };
-        });
+        .map(([userId]) => userId)
+    );
+
+    if (profiles) {
+      const working = Array.from(workingUserIds).map(userId => {
+        const profile = profiles.find((p) => p.id === userId);
+        return {
+          id: userId,
+          nome: profile?.nome || 'Colaborador',
+          cargo: profile?.cargo,
+          lastPunch: userLastPunch[userId].timestamp,
+        };
+      });
 
       setActiveWorkers(working);
     }
@@ -101,6 +108,15 @@ export default function AdminDashboard() {
     // Count unique users on vacation
     const uniqueUsersOnVacation = new Set(onVacation?.map(v => v.user_id) || []);
     setOnVacationCount(uniqueUsersOnVacation.size);
+
+    // Calculate users not working today (not clocked in and not on vacation)
+    if (profiles) {
+      const notWorking = profiles.filter(p => 
+        !workingUserIds.has(p.id) && !uniqueUsersOnVacation.has(p.id)
+      ).length;
+      
+      setNotWorkingCount(notWorking);
+    }
 
     setLoading(false);
   };
@@ -171,7 +187,7 @@ export default function AdminDashboard() {
       )}
 
       {/* Stats Grid - Responsive */}
-      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-6">
         <StatsCard
           title="Colaboradores"
           value={totalUsers}
@@ -192,6 +208,13 @@ export default function AdminDashboard() {
           subtitle={isMobile ? "ausentes" : "colaboradores ausentes"}
           icon={Palmtree}
           variant="default"
+        />
+        <StatsCard
+          title={isMobile ? "Ausentes" : "Não Entraram"}
+          value={notWorkingCount}
+          subtitle={isMobile ? "sem entrada" : "sem registo hoje"}
+          icon={UserX}
+          variant="destructive"
         />
         <StatsCard
           title={isMobile ? "Férias" : "Férias Pendentes"}

@@ -10,7 +10,7 @@ interface StatsCardProps {
     value: number;
     label: string;
   };
-  variant?: 'default' | 'primary' | 'success' | 'warning';
+  variant?: 'default' | 'primary' | 'success' | 'warning' | 'destructive';
 }
 
 export function StatsCard({ 
@@ -41,6 +41,11 @@ export function StatsCard({
       bg: 'bg-gradient-to-br from-warning/10 via-warning/5 to-transparent',
       iconBg: 'bg-warning/20',
       iconColor: 'text-warning',
+    },
+    destructive: {
+      bg: 'bg-gradient-to-br from-destructive/10 via-destructive/5 to-transparent',
+      iconBg: 'bg-destructive/20',
+      iconColor: 'text-destructive',
     },
   };
 
