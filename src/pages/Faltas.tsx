@@ -233,8 +233,25 @@ export default function Faltas() {
                       onChange={(e) => setFormData({ ...formData, hora_fim: e.target.value })}
                     />
                   </div>
+                  {formData.hora_inicio && formData.hora_fim && (() => {
+                    const [startH, startM] = formData.hora_inicio.split(':').map(Number);
+                    const [endH, endM] = formData.hora_fim.split(':').map(Number);
+                    const totalMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+                    const hours = Math.floor(totalMinutes / 60);
+                    const minutes = totalMinutes % 60;
+                    const isInvalid = totalMinutes >= 480; // 8 hours = 480 minutes
+                    
+                    return (
+                      <div className={`col-span-2 p-2 rounded-md ${isInvalid ? 'bg-destructive/10 text-destructive' : 'bg-muted'}`}>
+                        <p className="text-xs font-medium">
+                          Duração: {hours}h {minutes > 0 ? `${minutes}min` : ''}
+                          {isInvalid && ' — Para 8h ou mais, selecione "Dia Inteiro"'}
+                        </p>
+                      </div>
+                    );
+                  })()}
                   <p className="col-span-2 text-xs text-muted-foreground">
-                    Indique o período em que esteve ausente
+                    Indique o período em que esteve ausente (máximo 8 horas)
                   </p>
                 </div>
               )}
@@ -274,7 +291,13 @@ export default function Faltas() {
                   !formData.data || 
                   !formData.motivo || 
                   submitting ||
-                  (formData.tipo_falta === 'parcial' && (!formData.hora_inicio || !formData.hora_fim))
+                  (formData.tipo_falta === 'parcial' && (!formData.hora_inicio || !formData.hora_fim)) ||
+                  (formData.tipo_falta === 'parcial' && formData.hora_inicio && formData.hora_fim && (() => {
+                    const [startH, startM] = formData.hora_inicio.split(':').map(Number);
+                    const [endH, endM] = formData.hora_fim.split(':').map(Number);
+                    const totalMinutes = (endH * 60 + endM) - (startH * 60 + startM);
+                    return totalMinutes >= 480; // 8 hours or more
+                  })())
                 }
               >
                 {submitting ? (
