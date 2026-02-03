@@ -122,6 +122,8 @@ export type Database = {
           data_inicio: string
           id: string
           status: Database["public"]["Enums"]["request_status"]
+          tipo_fim: string
+          tipo_inicio: string
           tipo_periodo: string
           updated_at: string
           user_id: string
@@ -132,6 +134,8 @@ export type Database = {
           data_inicio: string
           id?: string
           status?: Database["public"]["Enums"]["request_status"]
+          tipo_fim?: string
+          tipo_inicio?: string
           tipo_periodo?: string
           updated_at?: string
           user_id: string
@@ -142,6 +146,8 @@ export type Database = {
           data_inicio?: string
           id?: string
           status?: Database["public"]["Enums"]["request_status"]
+          tipo_fim?: string
+          tipo_inicio?: string
           tipo_periodo?: string
           updated_at?: string
           user_id?: string

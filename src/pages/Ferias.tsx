@@ -27,19 +27,44 @@ import { pt } from 'date-fns/locale';
 import { isHoliday } from '@/lib/holidays';
 import { VacationCalendar } from '@/components/ferias/VacationCalendar';
 
-type TipoPeriodo = 'dia_inteiro' | 'meio_dia_manha' | 'meio_dia_tarde';
+type TipoInicio = 'manha' | 'tarde';
+type TipoFim = 'manha' | 'tarde';
 
-// Calculate business days (excluding weekends and holidays)
-const countBusinessDays = (start: Date, end: Date, tipoPeriodo: TipoPeriodo): number => {
+// Calculate business days with half-day adjustments
+const countBusinessDays = (
+  start: Date, 
+  end: Date, 
+  tipoInicio: TipoInicio, 
+  tipoFim: TipoFim
+): number => {
   const days = eachDayOfInterval({ start, end });
   const businessDays = days.filter(day => !isWeekend(day) && !isHoliday(day)).length;
   
-  // If it's a half day and only one day selected, count as 0.5
-  if (tipoPeriodo !== 'dia_inteiro' && isSameDay(start, end)) {
-    return 0.5;
+  if (businessDays === 0) return 0;
+  
+  // Single day case
+  if (isSameDay(start, end)) {
+    if (tipoInicio === 'manha' && tipoFim === 'tarde') {
+      return 1; // Full day
+    } else {
+      return 0.5; // Half day
+    }
   }
   
-  return businessDays;
+  // Multiple days case
+  let total = businessDays;
+  
+  // If starts in the afternoon, subtract half day
+  if (tipoInicio === 'tarde') {
+    total -= 0.5;
+  }
+  
+  // If ends in the morning, subtract half day
+  if (tipoFim === 'manha') {
+    total -= 0.5;
+  }
+  
+  return total;
 };
 
 interface FeriasRecord {
@@ -48,7 +73,8 @@ interface FeriasRecord {
   data_fim: string;
   status: 'pendente' | 'aprovado' | 'rejeitado';
   created_at: string;
-  tipo_periodo: TipoPeriodo;
+  tipo_inicio: TipoInicio;
+  tipo_fim: TipoFim;
 }
 
 export default function Ferias() {
@@ -60,12 +86,13 @@ export default function Ferias() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [calendarKey, setCalendarKey] = useState(0);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
-  const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>('dia_inteiro');
+  const [tipoInicio, setTipoInicio] = useState<TipoInicio>('manha');
+  const [tipoFim, setTipoFim] = useState<TipoFim>('tarde');
 
   useEffect(() => {
     if (user) {
       fetchFerias();
-      refreshProfile(); // Refresh profile to get updated saldo_ferias
+      refreshProfile();
     }
   }, [user]);
 
@@ -86,21 +113,36 @@ export default function Ferias() {
 
   const handleSelectRange = (start: Date, end: Date) => {
     setSelectedRange({ start, end });
-    // Reset to full day, but if same day allow half day option
-    setTipoPeriodo('dia_inteiro');
+    setTipoInicio('manha');
+    setTipoFim('tarde');
     setDialogOpen(true);
+  };
+
+  const resetForm = () => {
+    setSelectedRange(null);
+    setTipoInicio('manha');
+    setTipoFim('tarde');
   };
 
   const handleSubmit = async () => {
     if (!user || !selectedRange) return;
 
-    const requestedDays = countBusinessDays(selectedRange.start, selectedRange.end, tipoPeriodo);
+    const requestedDays = countBusinessDays(selectedRange.start, selectedRange.end, tipoInicio, tipoFim);
     const availableDays = profile?.saldo_ferias ?? 22;
 
     if (requestedDays > availableDays) {
       toast({
         title: 'Saldo insuficiente',
         description: `Está a pedir ${requestedDays} dias úteis, mas só tem ${availableDays} dias disponíveis.`,
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (requestedDays <= 0) {
+      toast({
+        title: 'Período inválido',
+        description: 'Selecione um período válido de férias.',
         variant: 'destructive',
       });
       return;
@@ -113,7 +155,8 @@ export default function Ferias() {
       data_inicio: format(selectedRange.start, 'yyyy-MM-dd'),
       data_fim: format(selectedRange.end, 'yyyy-MM-dd'),
       status: 'pendente',
-      tipo_periodo: tipoPeriodo,
+      tipo_inicio: tipoInicio,
+      tipo_fim: tipoFim,
     });
 
     if (error) {
@@ -128,8 +171,7 @@ export default function Ferias() {
         description: 'O seu pedido de férias foi enviado para aprovação.',
       });
       setDialogOpen(false);
-      setSelectedRange(null);
-      setTipoPeriodo('dia_inteiro');
+      resetForm();
       fetchFerias();
       setCalendarKey((prev) => prev + 1);
     }
@@ -150,19 +192,54 @@ export default function Ferias() {
   const isSingleDay = selectedRange ? isSameDay(selectedRange.start, selectedRange.end) : false;
   
   const selectedDays = selectedRange
-    ? countBusinessDays(selectedRange.start, selectedRange.end, tipoPeriodo)
+    ? countBusinessDays(selectedRange.start, selectedRange.end, tipoInicio, tipoFim)
     : 0;
   
   const availableDays = profile?.saldo_ferias ?? 22;
   const exceedsSaldo = selectedDays > availableDays;
 
-  const getTipoPeriodoLabel = (tipo: TipoPeriodo): string => {
-    switch (tipo) {
-      case 'dia_inteiro': return 'Dia Inteiro';
-      case 'meio_dia_manha': return 'Meio Dia (Manhã)';
-      case 'meio_dia_tarde': return 'Meio Dia (Tarde)';
-      default: return 'Dia Inteiro';
+  const formatDays = (days: number): string => {
+    if (days === 0.5) return '½ dia';
+    if (days === 1) return '1 dia';
+    if (days % 1 === 0.5) return `${Math.floor(days)}½ dias`;
+    return `${days} dias`;
+  };
+
+  const getVacationDescription = (item: FeriasRecord): string => {
+    const isSingleDayItem = item.data_inicio === item.data_fim;
+    
+    if (isSingleDayItem) {
+      if (item.tipo_inicio === 'manha' && item.tipo_fim === 'tarde') {
+        return '1 dia';
+      } else if (item.tipo_inicio === 'manha') {
+        return '½ dia (Manhã)';
+      } else {
+        return '½ dia (Tarde)';
+      }
     }
+    
+    // Multiple days
+    const days = eachDayOfInterval({
+      start: new Date(item.data_inicio),
+      end: new Date(item.data_fim),
+    });
+    const businessDays = days.filter(day => !isWeekend(day) && !isHoliday(day)).length;
+    
+    let total = businessDays;
+    if (item.tipo_inicio === 'tarde') total -= 0.5;
+    if (item.tipo_fim === 'manha') total -= 0.5;
+    
+    const parts: string[] = [];
+    parts.push(formatDays(total));
+    
+    if (item.tipo_inicio === 'tarde' || item.tipo_fim === 'manha') {
+      const details: string[] = [];
+      if (item.tipo_inicio === 'tarde') details.push('início à tarde');
+      if (item.tipo_fim === 'manha') details.push('fim de manhã');
+      parts.push(`(${details.join(', ')})`);
+    }
+    
+    return parts.join(' ');
   };
 
   return (
@@ -179,10 +256,7 @@ export default function Ferias() {
       {/* Confirmation Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => {
         setDialogOpen(open);
-        if (!open) {
-          setSelectedRange(null);
-          setTipoPeriodo('dia_inteiro');
-        }
+        if (!open) resetForm();
       }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -193,23 +267,55 @@ export default function Ferias() {
           </DialogHeader>
           {selectedRange && (
             <div className="py-4 space-y-4">
-              {/* Period type selector - only show for single day */}
-              {isSingleDay && (
+              {/* Period configuration */}
+              <div className="grid gap-4">
                 <div className="space-y-2">
-                  <Label htmlFor="tipo-periodo">Tipo de Período</Label>
-                  <Select value={tipoPeriodo} onValueChange={(value) => setTipoPeriodo(value as TipoPeriodo)}>
-                    <SelectTrigger id="tipo-periodo">
-                      <SelectValue placeholder="Selecione o tipo" />
+                  <Label htmlFor="tipo-inicio">
+                    {isSingleDay ? 'Período do dia' : 'Primeiro dia começa'}
+                  </Label>
+                  <Select value={tipoInicio} onValueChange={(value) => setTipoInicio(value as TipoInicio)}>
+                    <SelectTrigger id="tipo-inicio">
+                      <SelectValue />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="dia_inteiro">Dia Inteiro</SelectItem>
-                      <SelectItem value="meio_dia_manha">Meio Dia (Manhã)</SelectItem>
-                      <SelectItem value="meio_dia_tarde">Meio Dia (Tarde)</SelectItem>
+                      <SelectItem value="manha">De Manhã</SelectItem>
+                      <SelectItem value="tarde">À Tarde</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
-              )}
 
+                {!isSingleDay && (
+                  <div className="space-y-2">
+                    <Label htmlFor="tipo-fim">Último dia termina</Label>
+                    <Select value={tipoFim} onValueChange={(value) => setTipoFim(value as TipoFim)}>
+                      <SelectTrigger id="tipo-fim">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manha">De Manhã</SelectItem>
+                        <SelectItem value="tarde">À Tarde</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+
+                {isSingleDay && (
+                  <div className="space-y-2">
+                    <Label htmlFor="tipo-fim-single">Termina</Label>
+                    <Select value={tipoFim} onValueChange={(value) => setTipoFim(value as TipoFim)}>
+                      <SelectTrigger id="tipo-fim-single">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="manha">De Manhã</SelectItem>
+                        <SelectItem value="tarde">À Tarde</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+              </div>
+
+              {/* Summary */}
               <div className="p-4 rounded-lg bg-muted/50 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Período:</span>
@@ -223,18 +329,23 @@ export default function Ferias() {
                     )}
                   </span>
                 </div>
-                {isSingleDay && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-muted-foreground">Tipo:</span>
-                    <span className="text-sm font-medium">
-                      {getTipoPeriodoLabel(tipoPeriodo)}
-                    </span>
-                  </div>
-                )}
                 <div className="flex justify-between">
-                  <span className="text-sm text-muted-foreground">Dias úteis:</span>
+                  <span className="text-sm text-muted-foreground">Horário:</span>
+                  <span className="text-sm font-medium">
+                    {isSingleDay ? (
+                      tipoInicio === 'manha' && tipoFim === 'tarde' ? 'Dia inteiro' :
+                      tipoInicio === 'manha' && tipoFim === 'manha' ? 'Só manhã' :
+                      tipoInicio === 'tarde' && tipoFim === 'tarde' ? 'Só tarde' :
+                      'Inválido'
+                    ) : (
+                      `${tipoInicio === 'manha' ? 'Manhã' : 'Tarde'} → ${tipoFim === 'manha' ? 'Manhã' : 'Tarde'}`
+                    )}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-sm text-muted-foreground">Total:</span>
                   <span className={`text-sm font-medium ${exceedsSaldo ? 'text-destructive' : ''}`}>
-                    {selectedDays === 0.5 ? '½ dia' : `${selectedDays} dias`}
+                    {formatDays(selectedDays)}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -242,6 +353,13 @@ export default function Ferias() {
                   <span className="text-sm font-medium">{availableDays} dias</span>
                 </div>
               </div>
+
+              {/* Validation for single day */}
+              {isSingleDay && tipoInicio === 'tarde' && tipoFim === 'manha' && (
+                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
+                  ⚠️ Configuração inválida: não pode começar à tarde e terminar de manhã no mesmo dia.
+                </div>
+              )}
               
               {exceedsSaldo && (
                 <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
@@ -253,12 +371,14 @@ export default function Ferias() {
           <DialogFooter>
             <Button variant="outline" onClick={() => {
               setDialogOpen(false);
-              setSelectedRange(null);
-              setTipoPeriodo('dia_inteiro');
+              resetForm();
             }}>
               Cancelar
             </Button>
-            <Button onClick={handleSubmit} disabled={submitting || exceedsSaldo}>
+            <Button 
+              onClick={handleSubmit} 
+              disabled={submitting || exceedsSaldo || selectedDays <= 0}
+            >
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -316,12 +436,8 @@ export default function Ferias() {
             </div>
           ) : ferias.length > 0 ? (
             <div className="space-y-4">
-            {ferias.map((item) => {
+              {ferias.map((item) => {
                 const isSingleDayItem = item.data_inicio === item.data_fim;
-                const isHalfDay = item.tipo_periodo !== 'dia_inteiro';
-                const days = isHalfDay && isSingleDayItem 
-                  ? 0.5 
-                  : differenceInDays(new Date(item.data_fim), new Date(item.data_inicio)) + 1;
                 
                 return (
                   <div
@@ -340,12 +456,7 @@ export default function Ferias() {
                         )}
                       </p>
                       <p className="text-sm text-muted-foreground">
-                        {days === 0.5 ? '½ dia' : `${days} dias`}
-                        {isHalfDay && (
-                          <span className="ml-1 text-muted-foreground">
-                            ({item.tipo_periodo === 'meio_dia_manha' ? 'Manhã' : 'Tarde'})
-                          </span>
-                        )}
+                        {getVacationDescription(item)}
                       </p>
                     </div>
                     {getStatusBadge(item.status)}
