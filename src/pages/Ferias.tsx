@@ -11,18 +11,35 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, differenceInDays, isWeekend, eachDayOfInterval } from 'date-fns';
+import { format, differenceInDays, isWeekend, eachDayOfInterval, isSameDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { isHoliday } from '@/lib/holidays';
 import { VacationCalendar } from '@/components/ferias/VacationCalendar';
 
+type TipoPeriodo = 'dia_inteiro' | 'meio_dia_manha' | 'meio_dia_tarde';
+
 // Calculate business days (excluding weekends and holidays)
-const countBusinessDays = (start: Date, end: Date): number => {
+const countBusinessDays = (start: Date, end: Date, tipoPeriodo: TipoPeriodo): number => {
   const days = eachDayOfInterval({ start, end });
-  return days.filter(day => !isWeekend(day) && !isHoliday(day)).length;
+  const businessDays = days.filter(day => !isWeekend(day) && !isHoliday(day)).length;
+  
+  // If it's a half day and only one day selected, count as 0.5
+  if (tipoPeriodo !== 'dia_inteiro' && isSameDay(start, end)) {
+    return 0.5;
+  }
+  
+  return businessDays;
 };
 
 interface FeriasRecord {
@@ -31,6 +48,7 @@ interface FeriasRecord {
   data_fim: string;
   status: 'pendente' | 'aprovado' | 'rejeitado';
   created_at: string;
+  tipo_periodo: TipoPeriodo;
 }
 
 export default function Ferias() {
@@ -42,6 +60,7 @@ export default function Ferias() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [calendarKey, setCalendarKey] = useState(0);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [tipoPeriodo, setTipoPeriodo] = useState<TipoPeriodo>('dia_inteiro');
 
   useEffect(() => {
     if (user) {
@@ -60,20 +79,22 @@ export default function Ferias() {
       .order('created_at', { ascending: false });
 
     if (data) {
-      setFerias(data);
+      setFerias(data as FeriasRecord[]);
     }
     setLoading(false);
   };
 
   const handleSelectRange = (start: Date, end: Date) => {
     setSelectedRange({ start, end });
+    // Reset to full day, but if same day allow half day option
+    setTipoPeriodo('dia_inteiro');
     setDialogOpen(true);
   };
 
   const handleSubmit = async () => {
     if (!user || !selectedRange) return;
 
-    const requestedDays = countBusinessDays(selectedRange.start, selectedRange.end);
+    const requestedDays = countBusinessDays(selectedRange.start, selectedRange.end, tipoPeriodo);
     const availableDays = profile?.saldo_ferias ?? 22;
 
     if (requestedDays > availableDays) {
@@ -92,6 +113,7 @@ export default function Ferias() {
       data_inicio: format(selectedRange.start, 'yyyy-MM-dd'),
       data_fim: format(selectedRange.end, 'yyyy-MM-dd'),
       status: 'pendente',
+      tipo_periodo: tipoPeriodo,
     });
 
     if (error) {
@@ -107,6 +129,7 @@ export default function Ferias() {
       });
       setDialogOpen(false);
       setSelectedRange(null);
+      setTipoPeriodo('dia_inteiro');
       fetchFerias();
       setCalendarKey((prev) => prev + 1);
     }
@@ -124,12 +147,23 @@ export default function Ferias() {
     return <Badge variant={config.variant}>{config.label}</Badge>;
   };
 
+  const isSingleDay = selectedRange ? isSameDay(selectedRange.start, selectedRange.end) : false;
+  
   const selectedDays = selectedRange
-    ? countBusinessDays(selectedRange.start, selectedRange.end)
+    ? countBusinessDays(selectedRange.start, selectedRange.end, tipoPeriodo)
     : 0;
   
   const availableDays = profile?.saldo_ferias ?? 22;
   const exceedsSaldo = selectedDays > availableDays;
+
+  const getTipoPeriodoLabel = (tipo: TipoPeriodo): string => {
+    switch (tipo) {
+      case 'dia_inteiro': return 'Dia Inteiro';
+      case 'meio_dia_manha': return 'Meio Dia (Manhã)';
+      case 'meio_dia_tarde': return 'Meio Dia (Tarde)';
+      default: return 'Dia Inteiro';
+    }
+  };
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -145,7 +179,10 @@ export default function Ferias() {
       {/* Confirmation Dialog */}
       <Dialog open={dialogOpen} onOpenChange={(open) => {
         setDialogOpen(open);
-        if (!open) setSelectedRange(null);
+        if (!open) {
+          setSelectedRange(null);
+          setTipoPeriodo('dia_inteiro');
+        }
       }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
@@ -156,17 +193,48 @@ export default function Ferias() {
           </DialogHeader>
           {selectedRange && (
             <div className="py-4 space-y-4">
+              {/* Period type selector - only show for single day */}
+              {isSingleDay && (
+                <div className="space-y-2">
+                  <Label htmlFor="tipo-periodo">Tipo de Período</Label>
+                  <Select value={tipoPeriodo} onValueChange={(value) => setTipoPeriodo(value as TipoPeriodo)}>
+                    <SelectTrigger id="tipo-periodo">
+                      <SelectValue placeholder="Selecione o tipo" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="dia_inteiro">Dia Inteiro</SelectItem>
+                      <SelectItem value="meio_dia_manha">Meio Dia (Manhã)</SelectItem>
+                      <SelectItem value="meio_dia_tarde">Meio Dia (Tarde)</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+
               <div className="p-4 rounded-lg bg-muted/50 space-y-2">
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Período:</span>
                   <span className="text-sm font-medium">
-                    {format(selectedRange.start, 'd MMM', { locale: pt })} - {format(selectedRange.end, 'd MMM yyyy', { locale: pt })}
+                    {isSingleDay ? (
+                      format(selectedRange.start, 'd MMM yyyy', { locale: pt })
+                    ) : (
+                      <>
+                        {format(selectedRange.start, 'd MMM', { locale: pt })} - {format(selectedRange.end, 'd MMM yyyy', { locale: pt })}
+                      </>
+                    )}
                   </span>
                 </div>
+                {isSingleDay && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-muted-foreground">Tipo:</span>
+                    <span className="text-sm font-medium">
+                      {getTipoPeriodoLabel(tipoPeriodo)}
+                    </span>
+                  </div>
+                )}
                 <div className="flex justify-between">
                   <span className="text-sm text-muted-foreground">Dias úteis:</span>
                   <span className={`text-sm font-medium ${exceedsSaldo ? 'text-destructive' : ''}`}>
-                    {selectedDays} dias
+                    {selectedDays === 0.5 ? '½ dia' : `${selectedDays} dias`}
                   </span>
                 </div>
                 <div className="flex justify-between">
@@ -186,6 +254,7 @@ export default function Ferias() {
             <Button variant="outline" onClick={() => {
               setDialogOpen(false);
               setSelectedRange(null);
+              setTipoPeriodo('dia_inteiro');
             }}>
               Cancelar
             </Button>
@@ -247,8 +316,13 @@ export default function Ferias() {
             </div>
           ) : ferias.length > 0 ? (
             <div className="space-y-4">
-              {ferias.map((item) => {
-                const days = differenceInDays(new Date(item.data_fim), new Date(item.data_inicio)) + 1;
+            {ferias.map((item) => {
+                const isSingleDayItem = item.data_inicio === item.data_fim;
+                const isHalfDay = item.tipo_periodo !== 'dia_inteiro';
+                const days = isHalfDay && isSingleDayItem 
+                  ? 0.5 
+                  : differenceInDays(new Date(item.data_fim), new Date(item.data_inicio)) + 1;
+                
                 return (
                   <div
                     key={item.id}
@@ -256,10 +330,23 @@ export default function Ferias() {
                   >
                     <div>
                       <p className="font-medium">
-                        {format(new Date(item.data_inicio), 'd MMM', { locale: pt })} -{' '}
-                        {format(new Date(item.data_fim), 'd MMM yyyy', { locale: pt })}
+                        {isSingleDayItem ? (
+                          format(new Date(item.data_inicio), 'd MMM yyyy', { locale: pt })
+                        ) : (
+                          <>
+                            {format(new Date(item.data_inicio), 'd MMM', { locale: pt })} -{' '}
+                            {format(new Date(item.data_fim), 'd MMM yyyy', { locale: pt })}
+                          </>
+                        )}
                       </p>
-                      <p className="text-sm text-muted-foreground">{days} dias</p>
+                      <p className="text-sm text-muted-foreground">
+                        {days === 0.5 ? '½ dia' : `${days} dias`}
+                        {isHalfDay && (
+                          <span className="ml-1 text-muted-foreground">
+                            ({item.tipo_periodo === 'meio_dia_manha' ? 'Manhã' : 'Tarde'})
+                          </span>
+                        )}
+                      </p>
                     </div>
                     {getStatusBadge(item.status)}
                   </div>
