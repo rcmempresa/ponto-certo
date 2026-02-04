@@ -28,13 +28,55 @@ import {
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { format, eachDayOfInterval, isWeekend } from 'date-fns';
+import { format, eachDayOfInterval, isWeekend, isSameDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { isHoliday } from '@/lib/holidays';
 
-// Calculate business days (excluding weekends)
-const countBusinessDays = (start: Date, end: Date): number => {
+type TipoInicio = 'manha' | 'tarde';
+type TipoFim = 'manha' | 'tarde';
+
+// Calculate business days with half-day adjustments
+const countBusinessDays = (
+  start: Date, 
+  end: Date, 
+  tipoInicio: TipoInicio = 'manha', 
+  tipoFim: TipoFim = 'tarde'
+): number => {
   const days = eachDayOfInterval({ start, end });
-  return days.filter(day => !isWeekend(day)).length;
+  const businessDays = days.filter(day => !isWeekend(day) && !isHoliday(day)).length;
+  
+  if (businessDays === 0) return 0;
+  
+  // Single day case
+  if (isSameDay(start, end)) {
+    if (tipoInicio === 'manha' && tipoFim === 'tarde') {
+      return 1; // Full day
+    } else {
+      return 0.5; // Half day
+    }
+  }
+  
+  // Multiple days case
+  let total = businessDays;
+  
+  // If starts in the afternoon, subtract half day
+  if (tipoInicio === 'tarde') {
+    total -= 0.5;
+  }
+  
+  // If ends in the morning, subtract half day
+  if (tipoFim === 'manha') {
+    total -= 0.5;
+  }
+  
+  return total;
+};
+
+const formatDays = (days: number): string => {
+  if (days === 0.5) return '½ dia';
+  if (days === 1) return '1 dia útil';
+  if (days % 1 === 0.5) return `${Math.floor(days)}½ dias úteis`;
+  return `${days} dias úteis`;
 };
 
 interface FeriasRequest {
@@ -42,6 +84,8 @@ interface FeriasRequest {
   user_id: string;
   data_inicio: string;
   data_fim: string;
+  tipo_inicio: TipoInicio;
+  tipo_fim: TipoFim;
   status: 'pendente' | 'aprovado' | 'rejeitado';
   created_at: string;
   profile?: {
@@ -119,9 +163,11 @@ export default function AdminAprovacoes() {
     if (feriasData && profiles) {
       const feriasWithProfiles = feriasData.map((f) => ({
         ...f,
+        tipo_inicio: (f.tipo_inicio || 'manha') as TipoInicio,
+        tipo_fim: (f.tipo_fim || 'tarde') as TipoFim,
         profile: profiles.find((p) => p.id === f.user_id),
       }));
-      setFerias(feriasWithProfiles);
+      setFerias(feriasWithProfiles as FeriasRequest[]);
     }
 
     const { data: faltasData } = await supabase
@@ -180,7 +226,9 @@ export default function AdminAprovacoes() {
     if (action === 'aprovado') {
       const businessDays = countBusinessDays(
         new Date(request.data_inicio),
-        new Date(request.data_fim)
+        new Date(request.data_fim),
+        request.tipo_inicio || 'manha',
+        request.tipo_fim || 'tarde'
       );
 
       const { data: profileData } = await supabase
@@ -536,9 +584,35 @@ export default function AdminAprovacoes() {
               ) : ferias.length > 0 ? (
                 <div className="space-y-4">
                   {ferias.map((item, index) => {
-                    const days = countBusinessDays(new Date(item.data_inicio), new Date(item.data_fim));
+                    const days = countBusinessDays(
+                      new Date(item.data_inicio), 
+                      new Date(item.data_fim),
+                      item.tipo_inicio || 'manha',
+                      item.tipo_fim || 'tarde'
+                    );
                     const statusConfig = getStatusConfig(item.status);
                     const StatusIcon = statusConfig.icon;
+                    const isSingleDayItem = item.data_inicio === item.data_fim;
+                    
+                    // Build period description
+                    const getPeriodDescription = () => {
+                      if (isSingleDayItem) {
+                        if (item.tipo_inicio === 'manha' && item.tipo_fim === 'tarde') {
+                          return null; // Full day, no extra info needed
+                        } else if (item.tipo_inicio === 'manha') {
+                          return 'Manhã';
+                        } else {
+                          return 'Tarde';
+                        }
+                      }
+                      // Multiple days
+                      const parts: string[] = [];
+                      if (item.tipo_inicio === 'tarde') parts.push('início à tarde');
+                      if (item.tipo_fim === 'manha') parts.push('fim de manhã');
+                      return parts.length > 0 ? parts.join(', ') : null;
+                    };
+                    
+                    const periodDescription = getPeriodDescription();
                     
                     return (
                       <div
@@ -555,12 +629,24 @@ export default function AdminAprovacoes() {
                           <div>
                             <p className="font-semibold text-base">{item.profile?.nome}</p>
                             <p className="text-sm text-muted-foreground">
-                              {format(new Date(item.data_inicio), "d 'de' MMMM", { locale: pt })} → {' '}
-                              {format(new Date(item.data_fim), "d 'de' MMMM yyyy", { locale: pt })}
+                              {isSingleDayItem ? (
+                                format(new Date(item.data_inicio), "d 'de' MMMM yyyy", { locale: pt })
+                              ) : (
+                                <>
+                                  {format(new Date(item.data_inicio), "d 'de' MMMM", { locale: pt })} → {' '}
+                                  {format(new Date(item.data_fim), "d 'de' MMMM yyyy", { locale: pt })}
+                                </>
+                              )}
                             </p>
-                            <Badge variant="outline" className="mt-2 text-xs">
-                              {days} dia{days > 1 ? 's' : ''} útei{days > 1 ? 's' : 'l'}
-                            </Badge>
+                            <div className="flex items-center gap-2 mt-2">
+                              <Badge variant="outline" className="text-xs">
+                                {formatDays(days)}
+                              </Badge>
+                              {periodDescription && (
+                                <Badge variant="secondary" className="text-xs">
+                                  {periodDescription}
+                                </Badge>
+                              )}</div>
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
