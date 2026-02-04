@@ -79,6 +79,56 @@ interface DaySummary {
   isHoliday: boolean;
 }
 
+// Separate component for delete button to avoid portal issues with AlertDialog in loops
+function DeletePontoButton({ 
+  id, 
+  tipo, 
+  onDelete, 
+  isDeleting 
+}: { 
+  id: string; 
+  tipo: string; 
+  onDelete: (id: string) => void; 
+  isDeleting: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <AlertDialog open={open} onOpenChange={setOpen}>
+      <AlertDialogTrigger asChild>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-6 w-6 text-muted-foreground hover:text-destructive"
+          disabled={isDeleting}
+        >
+          <Trash2 className="h-3 w-3" />
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Eliminar registo?</AlertDialogTitle>
+          <AlertDialogDescription>
+            Esta ação não pode ser desfeita. O registo de {tipo} será eliminado permanentemente.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Cancelar</AlertDialogCancel>
+          <AlertDialogAction
+            onClick={() => {
+              onDelete(id);
+              setOpen(false);
+            }}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            Eliminar
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+}
+
 export default function AdminPonto() {
   const { toast } = useToast();
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -535,35 +585,12 @@ export default function AdminPonto() {
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                      disabled={deletingId === e.id}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Eliminar registo?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Esta ação não pode ser desfeita. O registo de entrada será eliminado permanentemente.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleDeletePonto(e.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      >
-                                        Eliminar
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
+                                <DeletePontoButton
+                                  id={e.id}
+                                  tipo="entrada"
+                                  onDelete={handleDeletePonto}
+                                  isDeleting={deletingId === e.id}
+                                />
                               </div>
                             ))}
                             {entries.length === 0 && (
@@ -589,35 +616,12 @@ export default function AdminPonto() {
                                 >
                                   <Pencil className="h-3 w-3" />
                                 </Button>
-                                <AlertDialog>
-                                  <AlertDialogTrigger asChild>
-                                    <Button
-                                      variant="ghost"
-                                      size="icon"
-                                      className="h-6 w-6 text-muted-foreground hover:text-destructive"
-                                      disabled={deletingId === e.id}
-                                    >
-                                      <Trash2 className="h-3 w-3" />
-                                    </Button>
-                                  </AlertDialogTrigger>
-                                  <AlertDialogContent>
-                                    <AlertDialogHeader>
-                                      <AlertDialogTitle>Eliminar registo?</AlertDialogTitle>
-                                      <AlertDialogDescription>
-                                        Esta ação não pode ser desfeita. O registo de saída será eliminado permanentemente.
-                                      </AlertDialogDescription>
-                                    </AlertDialogHeader>
-                                    <AlertDialogFooter>
-                                      <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                      <AlertDialogAction
-                                        onClick={() => handleDeletePonto(e.id)}
-                                        className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                                      >
-                                        Eliminar
-                                      </AlertDialogAction>
-                                    </AlertDialogFooter>
-                                  </AlertDialogContent>
-                                </AlertDialog>
+                                <DeletePontoButton
+                                  id={e.id}
+                                  tipo="saída"
+                                  onDelete={handleDeletePonto}
+                                  isDeleting={deletingId === e.id}
+                                />
                               </div>
                             ))}
                             {exits.length === 0 && (
