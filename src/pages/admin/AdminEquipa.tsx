@@ -301,7 +301,11 @@ export default function AdminEquipa() {
                     </div>
                     <div className="flex-1">
                       <p className="text-xs text-muted-foreground">Dias de Férias</p>
-                      <p className="font-medium">{profile.saldo_ferias} dias</p>
+                      <p className="font-medium">
+                        {Number.isInteger(profile.saldo_ferias) 
+                          ? profile.saldo_ferias 
+                          : profile.saldo_ferias.toFixed(1).replace('.', ',')} dias
+                      </p>
                     </div>
                   </div>
                 </div>
@@ -372,8 +376,9 @@ export default function AdminEquipa() {
                 id="saldo_ferias"
                 type="number"
                 min={0}
+                step={0.5}
                 value={formData.saldo_ferias}
-                onChange={(e) => setFormData({ ...formData, saldo_ferias: parseInt(e.target.value) || 0 })}
+                onChange={(e) => setFormData({ ...formData, saldo_ferias: parseFloat(e.target.value) || 0 })}
                 className="rounded-xl"
               />
             </div>
