@@ -17,7 +17,7 @@ interface Profile {
   email: string;
   nome: string;
   cargo: string | null;
-  saldo_ferias: number;
+  saldo_ferias: number; // Now supports decimal values like 20.5
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
