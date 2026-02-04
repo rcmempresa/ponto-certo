@@ -424,7 +424,13 @@ export default function Ferias() {
                 <Sun className="h-6 w-6 text-warning" />
               </div>
               <div>
-                <p className="text-2xl font-semibold">{profile?.saldo_ferias ?? 22}</p>
+                <p className="text-2xl font-semibold">
+                  {profile?.saldo_ferias !== undefined 
+                    ? (Number.isInteger(profile.saldo_ferias) 
+                        ? profile.saldo_ferias 
+                        : profile.saldo_ferias.toFixed(1).replace('.', ',')) 
+                    : 22}
+                </p>
                 <p className="text-sm text-muted-foreground">Dias disponíveis</p>
               </div>
             </div>
