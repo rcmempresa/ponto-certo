@@ -88,6 +88,7 @@ export default function Ferias() {
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
   const [tipoInicio, setTipoInicio] = useState<TipoInicio>('manha');
   const [tipoFim, setTipoFim] = useState<TipoFim>('tarde');
+  const [tipoPeriodoSingleDay, setTipoPeriodoSingleDay] = useState<'dia_inteiro' | 'manha' | 'tarde'>('dia_inteiro');
 
   useEffect(() => {
     if (user) {
@@ -122,12 +123,32 @@ export default function Ferias() {
     setSelectedRange(null);
     setTipoInicio('manha');
     setTipoFim('tarde');
+    setTipoPeriodoSingleDay('dia_inteiro');
   };
 
   const handleSubmit = async () => {
     if (!user || !selectedRange) return;
 
-    const requestedDays = countBusinessDays(selectedRange.start, selectedRange.end, tipoInicio, tipoFim);
+    const isSingleDaySubmit = isSameDay(selectedRange.start, selectedRange.end);
+    
+    // For single day, derive tipo_inicio and tipo_fim from tipoPeriodoSingleDay
+    let finalTipoInicio = tipoInicio;
+    let finalTipoFim = tipoFim;
+    
+    if (isSingleDaySubmit) {
+      if (tipoPeriodoSingleDay === 'dia_inteiro') {
+        finalTipoInicio = 'manha';
+        finalTipoFim = 'tarde';
+      } else if (tipoPeriodoSingleDay === 'manha') {
+        finalTipoInicio = 'manha';
+        finalTipoFim = 'manha';
+      } else {
+        finalTipoInicio = 'tarde';
+        finalTipoFim = 'tarde';
+      }
+    }
+
+    const requestedDays = countBusinessDays(selectedRange.start, selectedRange.end, finalTipoInicio, finalTipoFim);
     const availableDays = profile?.saldo_ferias ?? 22;
 
     if (requestedDays > availableDays) {
@@ -155,8 +176,8 @@ export default function Ferias() {
       data_inicio: format(selectedRange.start, 'yyyy-MM-dd'),
       data_fim: format(selectedRange.end, 'yyyy-MM-dd'),
       status: 'pendente',
-      tipo_inicio: tipoInicio,
-      tipo_fim: tipoFim,
+      tipo_inicio: finalTipoInicio,
+      tipo_fim: finalTipoFim,
     });
 
     if (error) {
@@ -191,8 +212,19 @@ export default function Ferias() {
 
   const isSingleDay = selectedRange ? isSameDay(selectedRange.start, selectedRange.end) : false;
   
+  // Calculate selected days based on period type
+  const getEffectiveTipos = () => {
+    if (isSingleDay) {
+      if (tipoPeriodoSingleDay === 'dia_inteiro') return { inicio: 'manha' as TipoInicio, fim: 'tarde' as TipoFim };
+      if (tipoPeriodoSingleDay === 'manha') return { inicio: 'manha' as TipoInicio, fim: 'manha' as TipoFim };
+      return { inicio: 'tarde' as TipoInicio, fim: 'tarde' as TipoFim };
+    }
+    return { inicio: tipoInicio, fim: tipoFim };
+  };
+  
+  const effectiveTipos = getEffectiveTipos();
   const selectedDays = selectedRange
-    ? countBusinessDays(selectedRange.start, selectedRange.end, tipoInicio, tipoFim)
+    ? countBusinessDays(selectedRange.start, selectedRange.end, effectiveTipos.inicio, effectiveTipos.fim)
     : 0;
   
   const availableDays = profile?.saldo_ferias ?? 22;
@@ -269,49 +301,48 @@ export default function Ferias() {
             <div className="py-4 space-y-4">
               {/* Period configuration */}
               <div className="grid gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="tipo-inicio">
-                    {isSingleDay ? 'Período do dia' : 'Primeiro dia começa'}
-                  </Label>
-                  <Select value={tipoInicio} onValueChange={(value) => setTipoInicio(value as TipoInicio)}>
-                    <SelectTrigger id="tipo-inicio">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="manha">De Manhã</SelectItem>
-                      <SelectItem value="tarde">À Tarde</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {!isSingleDay && (
+                {isSingleDay ? (
                   <div className="space-y-2">
-                    <Label htmlFor="tipo-fim">Último dia termina</Label>
-                    <Select value={tipoFim} onValueChange={(value) => setTipoFim(value as TipoFim)}>
-                      <SelectTrigger id="tipo-fim">
+                    <Label htmlFor="tipo-periodo">Tipo de período</Label>
+                    <Select value={tipoPeriodoSingleDay} onValueChange={(value) => setTipoPeriodoSingleDay(value as 'dia_inteiro' | 'manha' | 'tarde')}>
+                      <SelectTrigger id="tipo-periodo">
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="manha">De Manhã</SelectItem>
-                        <SelectItem value="tarde">À Tarde</SelectItem>
+                        <SelectItem value="dia_inteiro">Dia Inteiro</SelectItem>
+                        <SelectItem value="manha">Só Manhã (½ dia)</SelectItem>
+                        <SelectItem value="tarde">Só Tarde (½ dia)</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
-                )}
+                ) : (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="tipo-inicio">Primeiro dia começa</Label>
+                      <Select value={tipoInicio} onValueChange={(value) => setTipoInicio(value as TipoInicio)}>
+                        <SelectTrigger id="tipo-inicio">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="manha">De Manhã</SelectItem>
+                          <SelectItem value="tarde">À Tarde (½ dia)</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
 
-                {isSingleDay && (
-                  <div className="space-y-2">
-                    <Label htmlFor="tipo-fim-single">Termina</Label>
-                    <Select value={tipoFim} onValueChange={(value) => setTipoFim(value as TipoFim)}>
-                      <SelectTrigger id="tipo-fim-single">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="manha">De Manhã</SelectItem>
-                        <SelectItem value="tarde">À Tarde</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="tipo-fim">Último dia termina</Label>
+                      <Select value={tipoFim} onValueChange={(value) => setTipoFim(value as TipoFim)}>
+                        <SelectTrigger id="tipo-fim">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="manha">De Manhã (½ dia)</SelectItem>
+                          <SelectItem value="tarde">À Tarde</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </>
                 )}
               </div>
 
@@ -333,10 +364,9 @@ export default function Ferias() {
                   <span className="text-sm text-muted-foreground">Horário:</span>
                   <span className="text-sm font-medium">
                     {isSingleDay ? (
-                      tipoInicio === 'manha' && tipoFim === 'tarde' ? 'Dia inteiro' :
-                      tipoInicio === 'manha' && tipoFim === 'manha' ? 'Só manhã' :
-                      tipoInicio === 'tarde' && tipoFim === 'tarde' ? 'Só tarde' :
-                      'Inválido'
+                      tipoPeriodoSingleDay === 'dia_inteiro' ? 'Dia inteiro' :
+                      tipoPeriodoSingleDay === 'manha' ? 'Só manhã' :
+                      'Só tarde'
                     ) : (
                       `${tipoInicio === 'manha' ? 'Manhã' : 'Tarde'} → ${tipoFim === 'manha' ? 'Manhã' : 'Tarde'}`
                     )}
@@ -353,13 +383,6 @@ export default function Ferias() {
                   <span className="text-sm font-medium">{availableDays} dias</span>
                 </div>
               </div>
-
-              {/* Validation for single day */}
-              {isSingleDay && tipoInicio === 'tarde' && tipoFim === 'manha' && (
-                <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
-                  ⚠️ Configuração inválida: não pode começar à tarde e terminar de manhã no mesmo dia.
-                </div>
-              )}
               
               {exceedsSaldo && (
                 <div className="p-3 rounded-lg bg-destructive/10 text-destructive text-sm">
