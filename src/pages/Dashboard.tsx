@@ -114,7 +114,7 @@ export default function Dashboard() {
         <div className="space-y-4">
           <StatsCard
             title="Dias de Férias"
-            value={profile?.saldo_ferias ?? 22}
+            value={profile?.saldo_ferias !== undefined ? (Number.isInteger(profile.saldo_ferias) ? profile.saldo_ferias : profile.saldo_ferias.toFixed(1).replace('.', ',')) : 22}
             subtitle="dias disponíveis"
             icon={Sun}
           />
