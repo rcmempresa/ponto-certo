@@ -71,6 +71,10 @@ export function calculateWorkHours(
     hours = hours - LUNCH_BREAK_HOURS;
   }
 
+  // Cap daily work hours at 8 hours maximum
+  const MAX_DAILY_HOURS = 8;
+  hours = Math.min(hours, MAX_DAILY_HOURS);
+
   if (roundToWholeHours) {
     return Math.floor(hours); // Always round down to whole hours
   }
