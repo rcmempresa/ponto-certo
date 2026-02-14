@@ -171,6 +171,33 @@ export default function Ferias() {
 
     setSubmitting(true);
 
+    // Check for conflicts with approved vacations from other users
+    const startStr = format(selectedRange.start, 'yyyy-MM-dd');
+    const endStr = format(selectedRange.end, 'yyyy-MM-dd');
+
+    const { data: conflictingVacations } = await supabase
+      .from('ferias')
+      .select('*, profiles:user_id(nome)')
+      .eq('status', 'aprovado')
+      .neq('user_id', user.id)
+      .lte('data_inicio', endStr)
+      .gte('data_fim', startStr);
+
+    if (conflictingVacations && conflictingVacations.length > 0) {
+      const names = conflictingVacations
+        .map((v: any) => v.profiles?.nome || 'Colaborador')
+        .filter((name: string, index: number, self: string[]) => self.indexOf(name) === index)
+        .join(', ');
+      
+      toast({
+        title: 'Conflito de férias',
+        description: `Já existe(m) férias aprovadas nesse período para: ${names}. Escolha outras datas.`,
+        variant: 'destructive',
+      });
+      setSubmitting(false);
+      return;
+    }
+
     const { error } = await supabase.from('ferias').insert({
       user_id: user.id,
       data_inicio: format(selectedRange.start, 'yyyy-MM-dd'),
