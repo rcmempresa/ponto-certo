@@ -84,6 +84,9 @@ const CATEGORIAS = [
   'Salários',
   'Medicina de Trabalho',
   'Formações',
+  'Documentação Viaturas',
+  'Documentação Funcionários',
+  'Recibos de Vencimentos 2026',
 ];
 
 const CATEGORIA_ICONS: Record<string, string> = {
@@ -103,6 +106,9 @@ const CATEGORIA_ICONS: Record<string, string> = {
   'Salários': '💰',
   'Medicina de Trabalho': '🏥',
   'Formações': '🎓',
+  'Documentação Viaturas': '🚗',
+  'Documentação Funcionários': '👤',
+  'Recibos de Vencimentos 2026': '💵',
 };
 
 export default function AdminDocumentos() {
