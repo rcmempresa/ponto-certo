@@ -77,6 +77,7 @@ const CATEGORIAS = [
   'Seguros',
   'Salários',
   'Medicina de Trabalho',
+  'Formações',
 ];
 
 export default function AdminDocumentos() {
