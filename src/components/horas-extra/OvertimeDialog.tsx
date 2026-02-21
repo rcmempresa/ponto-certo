@@ -217,14 +217,15 @@ export function OvertimeDialog({
 
           <div className="space-y-2">
             <Label htmlFor="motivo" className="text-sm font-medium">
-              Motivo / Descrição do trabalho
+              Observações
             </Label>
             <Textarea
               id="motivo"
               placeholder="Ex: Finalização de projeto urgente..."
               value={formData.motivo}
               onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
-              rows={2}
+              rows={4}
+              maxLength={500}
               className="rounded-xl resize-none"
             />
           </div>
