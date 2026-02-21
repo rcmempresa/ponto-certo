@@ -75,11 +75,19 @@ export function calculateWorkHours(
   const MAX_DAILY_HOURS = 8;
   hours = Math.min(hours, MAX_DAILY_HOURS);
 
-  if (roundToWholeHours) {
-    return Math.floor(hours); // Always round down to whole hours
+  // Round to 1 decimal place
+  hours = Math.round(hours * 10) / 10;
+
+  // Round up to 8 if close (7.5 or more rounds to 8)
+  if (hours >= 7.5) {
+    hours = 8;
   }
 
-  return Math.round(hours * 10) / 10; // 1 decimal place
+  if (roundToWholeHours) {
+    return Math.floor(hours);
+  }
+
+  return hours;
 }
 
 /**
