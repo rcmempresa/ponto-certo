@@ -536,9 +536,7 @@ export default function AdminPonto() {
               </TableHeader>
               <TableBody>
                 {daySummaries
-                  .filter((d) => d.hoursWorked > 0 || (!d.isWeekend && !d.isHoliday))
                   .reverse()
-                  .slice(0, 31)
                   .map((day) => {
                     const entries = day.entries.filter((e) => e.tipo === 'entrada');
                     const exits = day.entries.filter((e) => e.tipo === 'saida');

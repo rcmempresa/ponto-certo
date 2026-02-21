@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, Pencil, Loader2, Shield, User, Briefcase, Calendar, Search } from 'lucide-react';
+import { Users, Pencil, Loader2, Shield, User, Briefcase, Calendar, Search, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -13,6 +13,17 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import {
   Select,
   SelectContent,
@@ -41,6 +52,8 @@ export default function AdminEquipa() {
   const [selectedProfile, setSelectedProfile] = useState<Profile | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const [formData, setFormData] = useState({
     nome: '',
@@ -166,6 +179,38 @@ export default function AdminEquipa() {
       .join('')
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const handleDelete = async (profile: Profile) => {
+    setDeletingId(profile.id);
+    
+    // Delete all related data first
+    await Promise.all([
+      supabase.from('ponto').delete().eq('user_id', profile.id),
+      supabase.from('ferias').delete().eq('user_id', profile.id),
+      supabase.from('faltas').delete().eq('user_id', profile.id),
+      supabase.from('horas_extra').delete().eq('user_id', profile.id),
+      supabase.from('notifications').delete().eq('user_id', profile.id),
+      supabase.from('documento_permissoes').delete().eq('user_id', profile.id),
+      supabase.from('user_roles').delete().eq('user_id', profile.id),
+    ]);
+
+    const { error } = await supabase.from('profiles').delete().eq('id', profile.id);
+
+    if (error) {
+      toast({
+        title: 'Erro',
+        description: 'Não foi possível eliminar o colaborador.',
+        variant: 'destructive',
+      });
+    } else {
+      toast({
+        title: 'Colaborador eliminado',
+        description: `${profile.nome} foi removido do sistema.`,
+      });
+      fetchProfiles();
+    }
+    setDeletingId(null);
   };
 
   const adminCount = profiles.filter(p => p.role === 'admin').length;
@@ -310,15 +355,50 @@ export default function AdminEquipa() {
                   </div>
                 </div>
 
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="w-full rounded-xl border-border/50 hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
-                  onClick={() => handleEdit(profile)}
-                >
-                  <Pencil className="mr-2 h-4 w-4" />
-                  Editar Perfil
-                </Button>
+                <div className="flex gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1 rounded-xl border-border/50 hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
+                    onClick={() => handleEdit(profile)}
+                  >
+                    <Pencil className="mr-2 h-4 w-4" />
+                    Editar
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="rounded-xl border-border/50 hover:bg-destructive/10 hover:text-destructive hover:border-destructive/30 transition-all"
+                        disabled={deletingId === profile.id}
+                      >
+                        {deletingId === profile.id ? (
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-4 w-4" />
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Eliminar colaborador?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Esta ação irá eliminar permanentemente <strong>{profile.nome}</strong> e todos os seus registos (ponto, férias, faltas, horas extra). Esta ação não pode ser desfeita.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                        <AlertDialogAction
+                          onClick={() => handleDelete(profile)}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          Eliminar
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </div>
             </div>
           ))}
