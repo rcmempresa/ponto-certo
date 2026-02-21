@@ -64,7 +64,7 @@ export function WeeklyHoursChart() {
       // Calculate hours using centralized logic
       // For past days without exit, hours are NOT counted
       // Only today allows counting ongoing work
-      const hours = calculateWorkHours(dayRecords, isToday, true);
+      const hours = calculateWorkHours(dayRecords, isToday, false);
       weekTotal += hours;
 
       return {
