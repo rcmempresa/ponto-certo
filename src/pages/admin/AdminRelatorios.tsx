@@ -47,6 +47,8 @@ interface FeriasRecord {
   data_inicio: string;
   data_fim: string;
   status: string;
+  tipo_inicio: string;
+  tipo_fim: string;
 }
 
 interface FaltaRecord {
@@ -77,6 +79,7 @@ interface EmployeeMonthlyReport {
   diasFerias: number;
   diasFalta: number;
   horasExtra: number;
+  saldoFerias: number;
 }
 
 export default function AdminRelatorios() {
@@ -185,17 +188,41 @@ export default function AdminRelatorios() {
           }
         });
 
-        // Calculate vacation days in this month
+        // Calculate vacation days in this month (accounting for half-days)
         const userFerias = feriasRecords.filter(f => f.user_id === profile.id);
         let diasFerias = 0;
         
         userFerias.forEach(ferias => {
           const feriaStart = parseISO(ferias.data_inicio);
           const feriaEnd = parseISO(ferias.data_fim);
+          const tipoInicio = ferias.tipo_inicio || 'manha';
+          const tipoFim = ferias.tipo_fim || 'tarde';
           
+          const businessDaysInRange: Date[] = [];
           daysInMonth.forEach(day => {
             if (day >= feriaStart && day <= feriaEnd && !isWeekend(day) && !isHoliday(day)) {
-              diasFerias++;
+              businessDaysInRange.push(day);
+            }
+          });
+
+          businessDaysInRange.forEach(day => {
+            const dayStr = format(day, 'yyyy-MM-dd');
+            const startStr = format(feriaStart, 'yyyy-MM-dd');
+            const endStr = format(feriaEnd, 'yyyy-MM-dd');
+            
+            if (startStr === endStr) {
+              // Single day vacation
+              if (tipoInicio === 'manha' && tipoFim === 'tarde') {
+                diasFerias += 1;
+              } else {
+                diasFerias += 0.5;
+              }
+            } else if (dayStr === startStr && tipoInicio === 'tarde') {
+              diasFerias += 0.5;
+            } else if (dayStr === endStr && tipoFim === 'manha') {
+              diasFerias += 0.5;
+            } else {
+              diasFerias += 1;
             }
           });
         });
@@ -216,6 +243,7 @@ export default function AdminRelatorios() {
           diasFerias,
           diasFalta,
           horasExtra,
+          saldoFerias: profile.saldo_ferias,
         } as EmployeeMonthlyReport;
       });
   }, [profiles, pontoRecords, feriasRecords, faltasRecords, horasExtraRecords, selectedMonth, selectedEmployee]);
@@ -278,7 +306,7 @@ export default function AdminRelatorios() {
           r.cargo || '-',
           r.diasTrabalhados,
           r.horasTrabalhadas,
-          r.diasFerias,
+          Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
           r.diasFalta,
           r.horasExtra,
         ]),
@@ -316,7 +344,7 @@ export default function AdminRelatorios() {
           r.cargo || '-',
           r.diasTrabalhados,
           r.horasTrabalhadas,
-          r.diasFerias,
+          Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
           r.diasFalta,
           r.horasExtra,
         ]),
@@ -446,7 +474,7 @@ export default function AdminRelatorios() {
                 <Palmtree className="h-5 w-5 text-muted-foreground" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{summary.totalDiasFerias}</p>
+                <p className="text-2xl font-bold">{Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ',')}</p>
                 <p className="text-xs text-muted-foreground">Dias Férias</p>
               </div>
             </div>
@@ -552,7 +580,7 @@ export default function AdminRelatorios() {
                           <TableCell className="text-center">{report.horasTrabalhadas}h</TableCell>
                           <TableCell className="text-center">
                             {report.diasFerias > 0 ? (
-                              <Badge variant="secondary">{report.diasFerias}</Badge>
+                              <Badge variant="secondary">{Number.isInteger(report.diasFerias) ? report.diasFerias : report.diasFerias.toFixed(1).replace('.', ',')}</Badge>
                             ) : '-'}
                           </TableCell>
                           <TableCell className="text-center">
