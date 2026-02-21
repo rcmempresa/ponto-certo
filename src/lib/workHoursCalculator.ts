@@ -66,8 +66,8 @@ export function calculateWorkHours(
 
   let hours = totalSeconds / 3600;
 
-  // Deduct lunch break (1 hour) only if total hours is 9 or more
-  if (hours >= 9) {
+  // Deduct lunch break (1 hour) for shifts of 5 hours or more
+  if (hours >= 5) {
     hours = hours - LUNCH_BREAK_HOURS;
   }
 

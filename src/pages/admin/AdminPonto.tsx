@@ -255,7 +255,7 @@ export default function AdminPonto() {
       const isToday = isSameDay(day, now);
 
       // Use centralized calculation - past days without exit get 0 hours
-      const hoursWorked = calculateWorkHours(dayRecords, isToday, true);
+      const hoursWorked = calculateWorkHours(dayRecords, isToday, false);
 
       return {
         date: day,
@@ -340,7 +340,7 @@ export default function AdminPonto() {
                 <Clock className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{Math.round(totalHours)}h</p>
+                <p className="text-2xl font-bold">{Number.isInteger(Math.round(totalHours * 10) / 10) ? Math.round(totalHours) : (Math.round(totalHours * 10) / 10).toFixed(1).replace('.', ',')}h</p>
                 <p className="text-xs text-muted-foreground">Este mês</p>
               </div>
             </div>
@@ -637,7 +637,7 @@ export default function AdminPonto() {
                                 : 'text-muted-foreground'
                             }`}
                           >
-                            {day.hoursWorked > 0 ? `${day.hoursWorked}h` : '—'}
+                            {day.hoursWorked > 0 ? `${Number.isInteger(day.hoursWorked) ? day.hoursWorked : day.hoursWorked.toFixed(1).replace('.', ',')}h` : '—'}
                           </span>
                         </TableCell>
                         <TableCell>

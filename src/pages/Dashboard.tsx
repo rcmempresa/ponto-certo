@@ -69,7 +69,7 @@ export default function Dashboard() {
         const dayRecords = data.filter((p) => isSameDay(new Date(p.timestamp), day));
         if (dayRecords.length > 0) {
           const isToday = isSameDay(day, now);
-          const hours = calculateWorkHours(dayRecords, isToday, true);
+          const hours = calculateWorkHours(dayRecords, isToday, false);
           if (hours > 0) {
             totalHours += hours;
             daysWithHours++;

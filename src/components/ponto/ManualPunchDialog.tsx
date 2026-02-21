@@ -220,9 +220,12 @@ export function ManualPunchDialog({
                 {(() => {
                   const [entryH, entryM] = formData.horaEntrada.split(':').map(Number);
                   const [exitH, exitM] = formData.horaSaida.split(':').map(Number);
-                  const totalMinutes = (exitH * 60 + exitM) - (entryH * 60 + entryM) - 60; // Subtract 1 hour for lunch
-                  const hours = Math.floor(totalMinutes / 60); // Always round down to whole hours
-                  return totalMinutes > 0 ? `${hours}h` : '0h';
+                  const totalMinutes = (exitH * 60 + exitM) - (entryH * 60 + entryM);
+                  const lunchDeduction = totalMinutes >= 300 ? 60 : 0; // Deduct lunch if >= 5h
+                  const netMinutes = totalMinutes - lunchDeduction;
+                  const hours = Math.floor(netMinutes / 60);
+                  const mins = netMinutes % 60;
+                  return netMinutes > 0 ? `${hours}h${mins > 0 ? mins.toString().padStart(2, '0') : ''}` : '0h';
                 })()}
               </p>
             </div>
