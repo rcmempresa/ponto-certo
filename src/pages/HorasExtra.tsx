@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Clock, Plus, Loader2, Calendar, CheckCircle2, XCircle, Timer } from 'lucide-react';
+import { Clock, Plus, Loader2, Calendar, CheckCircle2, XCircle, Timer, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,6 +17,17 @@ import { OvertimeDialog } from '@/components/horas-extra/OvertimeDialog';
 import { formatOvertimeMinutes } from '@/lib/overtimeCalculator';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { toast } from 'sonner';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 interface HorasExtraRecord {
   id: string;
@@ -35,6 +46,7 @@ export default function HorasExtra() {
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<HorasExtraRecord[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [deleteId, setDeleteId] = useState<string | null>(null);
   const [stats, setStats] = useState({
     totalApproved: 0,
     totalPending: 0,
@@ -80,6 +92,17 @@ export default function HorasExtra() {
     }
 
     setLoading(false);
+  };
+
+  const handleDelete = async (id: string) => {
+    const { error } = await supabase.from('horas_extra').delete().eq('id', id);
+    if (error) {
+      toast.error('Erro ao eliminar registo');
+    } else {
+      toast.success('Registo eliminado com sucesso');
+      fetchRecords();
+    }
+    setDeleteId(null);
   };
 
   const getStatusBadge = (status: string) => {
@@ -223,6 +246,7 @@ export default function HorasExtra() {
                   <TableHead>Duração</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
+                  <TableHead></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -246,6 +270,18 @@ export default function HorasExtra() {
                       )}
                     </TableCell>
                     <TableCell>{getStatusBadge(record.status)}</TableCell>
+                    <TableCell>
+                      {record.status === 'pendente' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                          onClick={() => setDeleteId(record.id)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -263,6 +299,26 @@ export default function HorasExtra() {
           onSuccess={fetchRecords}
         />
       )}
+
+      <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminar registo de horas extra?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser revertida. O registo será eliminado permanentemente.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => deleteId && handleDelete(deleteId)}
+            >
+              Eliminar
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
