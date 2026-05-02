@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, X, Loader2, Calendar, FileText, Clock, AlertCircle, CheckCircle2, Timer, Pencil, Trash2 } from 'lucide-react';
+import { Check, X, Loader2, Calendar, FileText, Clock, AlertCircle, CheckCircle2, Timer, Pencil, Trash2, CalendarCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -124,6 +124,19 @@ interface PontoRequest {
     email: string;
     cargo: string | null;
   };
+}
+
+interface FolgaTrabRequest {
+  id: string;
+  user_id: string;
+  data: string;
+  tipo_dia: string;
+  tipo_periodo: string;
+  horas: number;
+  motivo: string | null;
+  status: string;
+  created_at: string;
+  profile?: { nome: string; email: string; cargo: string | null };
 }
 
 export default function AdminAprovacoes() {
