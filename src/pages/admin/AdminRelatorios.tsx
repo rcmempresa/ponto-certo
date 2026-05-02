@@ -127,7 +127,7 @@ export default function AdminRelatorios() {
     const monthEnd = endOfMonth(monthStart);
 
     // Fetch all data in parallel
-    const [profilesRes, pontoRes, feriasRes, faltasRes, horasExtraRes] = await Promise.all([
+    const [profilesRes, pontoRes, feriasRes, faltasRes, horasExtraRes, folgasTrabRes] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase
         .from('ponto')
@@ -152,6 +152,12 @@ export default function AdminRelatorios() {
         .eq('status', 'aprovado')
         .gte('data', format(monthStart, 'yyyy-MM-dd'))
         .lte('data', format(monthEnd, 'yyyy-MM-dd')),
+      supabase
+        .from('folgas_trabalhadas')
+        .select('*')
+        .eq('status', 'aprovado')
+        .gte('data', format(monthStart, 'yyyy-MM-dd'))
+        .lte('data', format(monthEnd, 'yyyy-MM-dd')),
     ]);
 
     if (profilesRes.data) setProfiles(profilesRes.data);
@@ -159,6 +165,7 @@ export default function AdminRelatorios() {
     if (feriasRes.data) setFeriasRecords(feriasRes.data);
     if (faltasRes.data) setFaltasRecords(faltasRes.data);
     if (horasExtraRes.data) setHorasExtraRecords(horasExtraRes.data);
+    if (folgasTrabRes.data) setFolgasTrabRecords(folgasTrabRes.data as FolgaTrabalhadaRecord[]);
 
     setLoading(false);
   };
@@ -244,6 +251,10 @@ export default function AdminRelatorios() {
         const userHorasExtra = horasExtraRecords.filter(h => h.user_id === profile.id);
         const horasExtra = userHorasExtra.reduce((acc, h) => acc + Math.floor(h.minutos_extra / 60), 0);
 
+        // Calculate folgas trabalhadas (hours worked on weekends/holidays)
+        const userFolgas = folgasTrabRecords.filter(f => f.user_id === profile.id);
+        const folgasTrabalhadas = userFolgas.reduce((acc, f) => acc + Number(f.horas), 0);
+
         return {
           userId: profile.id,
           nome: profile.nome,
@@ -253,10 +264,11 @@ export default function AdminRelatorios() {
           diasFerias,
           diasFalta,
           horasExtra,
+          folgasTrabalhadas,
           saldoFerias: profile.saldo_ferias,
         } as EmployeeMonthlyReport;
       });
-  }, [profiles, pontoRecords, feriasRecords, faltasRecords, horasExtraRecords, selectedMonth, selectedEmployee]);
+  }, [profiles, pontoRecords, feriasRecords, faltasRecords, horasExtraRecords, folgasTrabRecords, selectedMonth, selectedEmployee]);
 
   // Summary totals
   const summary = useMemo(() => {
