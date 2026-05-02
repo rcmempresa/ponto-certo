@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Check, X, Loader2, Calendar, FileText, Clock, AlertCircle, CheckCircle2, Timer, Pencil, Trash2 } from 'lucide-react';
+import { Check, X, Loader2, Calendar, FileText, Clock, AlertCircle, CheckCircle2, Timer, Pencil, Trash2, CalendarCheck } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -126,11 +126,25 @@ interface PontoRequest {
   };
 }
 
+interface FolgaTrabRequest {
+  id: string;
+  user_id: string;
+  data: string;
+  tipo_dia: string;
+  tipo_periodo: string;
+  horas: number;
+  motivo: string | null;
+  status: string;
+  created_at: string;
+  profile?: { nome: string; email: string; cargo: string | null };
+}
+
 export default function AdminAprovacoes() {
   const { toast } = useToast();
   const [ferias, setFerias] = useState<FeriasRequest[]>([]);
   const [faltas, setFaltas] = useState<FaltaRequest[]>([]);
   const [pontos, setPontos] = useState<PontoRequest[]>([]);
+  const [folgasTrab, setFolgasTrab] = useState<FolgaTrabRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -197,7 +211,48 @@ export default function AdminAprovacoes() {
       setPontos(pontoWithProfiles);
     }
 
+    const { data: folgasData } = await supabase
+      .from('folgas_trabalhadas')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (folgasData && profiles) {
+      setFolgasTrab(
+        folgasData.map((f) => ({
+          ...f,
+          profile: profiles.find((p) => p.id === f.user_id),
+        })) as FolgaTrabRequest[]
+      );
+    }
+
     setLoading(false);
+  };
+
+  const handleFolgaAction = async (id: string, action: 'aprovado' | 'rejeitado') => {
+    setProcessingId(id);
+    const { error } = await supabase.from('folgas_trabalhadas').update({ status: action }).eq('id', id);
+    if (error) {
+      toast({ title: 'Erro', description: 'Não foi possível processar.', variant: 'destructive' });
+    } else {
+      toast({
+        title: action === 'aprovado' ? 'Folga trabalhada aprovada' : 'Folga trabalhada rejeitada',
+        description: 'O colaborador será notificado.',
+      });
+      fetchRequests();
+    }
+    setProcessingId(null);
+  };
+
+  const handleDeleteFolga = async (id: string) => {
+    setDeletingId(id);
+    const { error } = await supabase.from('folgas_trabalhadas').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Erro', description: 'Não foi possível eliminar.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Eliminado', description: 'O registo foi eliminado.' });
+      fetchRequests();
+    }
+    setDeletingId(null);
   };
 
   const handleFeriasAction = async (id: string, action: 'aprovado' | 'rejeitado') => {
@@ -460,7 +515,8 @@ export default function AdminAprovacoes() {
   const pendingFerias = ferias.filter((f) => f.status === 'pendente');
   const pendingFaltas = faltas.filter((f) => f.status === 'pendente');
   const pendingPontos = pontos.filter((p) => p.status === 'pendente');
-  const totalPending = pendingFerias.length + pendingFaltas.length + pendingPontos.length;
+  const pendingFolgas = folgasTrab.filter((f) => f.status === 'pendente');
+  const totalPending = pendingFerias.length + pendingFaltas.length + pendingPontos.length + pendingFolgas.length;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -515,7 +571,16 @@ export default function AdminAprovacoes() {
               <div>
                 <p className="text-2xl font-bold">{pendingPontos.length}</p>
                 <p className="text-xs text-muted-foreground">Ponto</p>
+            <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-background/80 backdrop-blur border border-border/50">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <CalendarCheck className="h-5 w-5 text-primary" />
               </div>
+              <div>
+                <p className="text-2xl font-bold">{pendingFolgas.length}</p>
+                <p className="text-xs text-muted-foreground">Folgas Trab.</p>
+              </div>
+            </div>
+          </div>
             </div>
           </div>
         </div>
@@ -556,6 +621,18 @@ export default function AdminAprovacoes() {
             {pendingPontos.length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
                 {pendingPontos.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="folgas"
+            className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            <CalendarCheck className="h-4 w-4" />
+            Folgas Trab.
+            {pendingFolgas.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
+                {pendingFolgas.length}
               </Badge>
             )}
           </TabsTrigger>
@@ -1025,6 +1102,143 @@ export default function AdminAprovacoes() {
                   </div>
                   <p className="text-lg font-medium text-muted-foreground">
                     Não existem registos de ponto manuais
+                  </p>
+                  <p className="text-sm text-muted-foreground/70 mt-1">
+                    Os pedidos aparecem aqui quando submetidos
+                  </p>
+                </div>
+              )}
+            </div>
+          </div>
+        </TabsContent>
+
+        {/* Folgas Trabalhadas Tab */}
+        <TabsContent value="folgas">
+          <div className="rounded-2xl border border-border/50 bg-card overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-border/50">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-primary/20">
+                  <CalendarCheck className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h2 className="text-lg font-semibold">Folgas Trabalhadas</h2>
+                  <p className="text-sm text-muted-foreground">{folgasTrab.length} registos no total</p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {loading ? (
+                <div className="flex items-center justify-center py-12">
+                  <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+                </div>
+              ) : folgasTrab.length > 0 ? (
+                <div className="space-y-4">
+                  {folgasTrab.map((item, index) => {
+                    const statusConfig = getStatusConfig(item.status);
+                    const StatusIcon = statusConfig.icon;
+                    const tipoLabel = item.tipo_dia === 'sabado' ? 'Sábado' : item.tipo_dia === 'domingo' ? 'Domingo' : 'Feriado';
+                    const periodoLabel = item.tipo_periodo === 'dia_inteiro' ? 'Dia inteiro' : 'Meio dia';
+
+                    return (
+                      <div
+                        key={item.id}
+                        className="group flex items-start justify-between p-5 rounded-xl bg-muted/20 border border-border/50 hover:border-border transition-all duration-300"
+                        style={{ animationDelay: `${index * 50}ms` }}
+                      >
+                        <div className="flex items-start gap-4">
+                          <Avatar className="h-12 w-12 ring-2 ring-background shadow-md">
+                            <AvatarFallback className="bg-gradient-to-br from-primary/30 to-primary/10 text-primary font-semibold">
+                              {getInitials(item.profile?.nome || 'U')}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-semibold text-base">{item.profile?.nome}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {format(new Date(item.data + 'T12:00:00'), "EEEE, d 'de' MMMM 'de' yyyy", { locale: pt })}
+                            </p>
+                            <div className="flex items-center gap-2 mt-2 flex-wrap">
+                              <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                                {tipoLabel}
+                              </Badge>
+                              <Badge variant="outline">{periodoLabel}</Badge>
+                              <Badge variant="secondary">{Number(item.horas)}h</Badge>
+                            </div>
+                            {item.motivo && (
+                              <p className="text-sm mt-2 text-foreground/80">{item.motivo}</p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Badge variant="outline" className={statusConfig.className}>
+                            <StatusIcon className="mr-1.5 h-3.5 w-3.5" />
+                            {statusConfig.label}
+                          </Badge>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-8 w-8 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Eliminar registo?</AlertDialogTitle>
+                                <AlertDialogDescription>
+                                  Esta ação não pode ser revertida.
+                                </AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                                <AlertDialogAction
+                                  onClick={() => handleDeleteFolga(item.id)}
+                                  className="bg-destructive hover:bg-destructive/90"
+                                >
+                                  {deletingId === item.id ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Eliminar'}
+                                </AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                          {item.status === 'pendente' && (
+                            <div className="flex gap-2 ml-2">
+                              <Button
+                                size="icon"
+                                variant="outline"
+                                className="h-10 w-10 rounded-xl text-destructive hover:text-destructive hover:bg-destructive/10 hover:border-destructive/30 transition-all"
+                                onClick={() => handleFolgaAction(item.id, 'rejeitado')}
+                                disabled={processingId === item.id}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                className="h-10 w-10 rounded-xl bg-success hover:bg-success/90 text-white transition-all"
+                                onClick={() => handleFolgaAction(item.id, 'aprovado')}
+                                disabled={processingId === item.id}
+                              >
+                                {processingId === item.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Check className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="flex flex-col items-center justify-center py-16 text-center">
+                  <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-muted/50 mb-4">
+                    <CalendarCheck className="h-10 w-10 text-muted-foreground/50" />
+                  </div>
+                  <p className="text-lg font-medium text-muted-foreground">
+                    Não existem folgas trabalhadas
                   </p>
                   <p className="text-sm text-muted-foreground/70 mt-1">
                     Os pedidos aparecem aqui quando submetidos

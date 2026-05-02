@@ -70,6 +70,14 @@ interface HorasExtraRecord {
   status: string;
 }
 
+interface FolgaTrabalhadaRecord {
+  id: string;
+  user_id: string;
+  data: string;
+  horas: number;
+  status: string;
+}
+
 interface EmployeeMonthlyReport {
   userId: string;
   nome: string;
@@ -79,6 +87,7 @@ interface EmployeeMonthlyReport {
   diasFerias: number;
   diasFalta: number;
   horasExtra: number;
+  folgasTrabalhadas: number;
   saldoFerias: number;
 }
 
@@ -88,6 +97,7 @@ export default function AdminRelatorios() {
   const [feriasRecords, setFeriasRecords] = useState<FeriasRecord[]>([]);
   const [faltasRecords, setFaltasRecords] = useState<FaltaRecord[]>([]);
   const [horasExtraRecords, setHorasExtraRecords] = useState<HorasExtraRecord[]>([]);
+  const [folgasTrabRecords, setFolgasTrabRecords] = useState<FolgaTrabalhadaRecord[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
   const [loading, setLoading] = useState(true);
@@ -117,7 +127,7 @@ export default function AdminRelatorios() {
     const monthEnd = endOfMonth(monthStart);
 
     // Fetch all data in parallel
-    const [profilesRes, pontoRes, feriasRes, faltasRes, horasExtraRes] = await Promise.all([
+    const [profilesRes, pontoRes, feriasRes, faltasRes, horasExtraRes, folgasTrabRes] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase
         .from('ponto')
@@ -142,6 +152,12 @@ export default function AdminRelatorios() {
         .eq('status', 'aprovado')
         .gte('data', format(monthStart, 'yyyy-MM-dd'))
         .lte('data', format(monthEnd, 'yyyy-MM-dd')),
+      supabase
+        .from('folgas_trabalhadas')
+        .select('*')
+        .eq('status', 'aprovado')
+        .gte('data', format(monthStart, 'yyyy-MM-dd'))
+        .lte('data', format(monthEnd, 'yyyy-MM-dd')),
     ]);
 
     if (profilesRes.data) setProfiles(profilesRes.data);
@@ -149,6 +165,7 @@ export default function AdminRelatorios() {
     if (feriasRes.data) setFeriasRecords(feriasRes.data);
     if (faltasRes.data) setFaltasRecords(faltasRes.data);
     if (horasExtraRes.data) setHorasExtraRecords(horasExtraRes.data);
+    if (folgasTrabRes.data) setFolgasTrabRecords(folgasTrabRes.data as FolgaTrabalhadaRecord[]);
 
     setLoading(false);
   };
@@ -234,6 +251,10 @@ export default function AdminRelatorios() {
         const userHorasExtra = horasExtraRecords.filter(h => h.user_id === profile.id);
         const horasExtra = userHorasExtra.reduce((acc, h) => acc + Math.floor(h.minutos_extra / 60), 0);
 
+        // Calculate folgas trabalhadas (hours worked on weekends/holidays)
+        const userFolgas = folgasTrabRecords.filter(f => f.user_id === profile.id);
+        const folgasTrabalhadas = userFolgas.reduce((acc, f) => acc + Number(f.horas), 0);
+
         return {
           userId: profile.id,
           nome: profile.nome,
@@ -243,10 +264,11 @@ export default function AdminRelatorios() {
           diasFerias,
           diasFalta,
           horasExtra,
+          folgasTrabalhadas,
           saldoFerias: profile.saldo_ferias,
         } as EmployeeMonthlyReport;
       });
-  }, [profiles, pontoRecords, feriasRecords, faltasRecords, horasExtraRecords, selectedMonth, selectedEmployee]);
+  }, [profiles, pontoRecords, feriasRecords, faltasRecords, horasExtraRecords, folgasTrabRecords, selectedMonth, selectedEmployee]);
 
   // Summary totals
   const summary = useMemo(() => {
@@ -256,6 +278,7 @@ export default function AdminRelatorios() {
       totalDiasFerias: monthlyReports.reduce((acc, r) => acc + r.diasFerias, 0),
       totalDiasFalta: monthlyReports.reduce((acc, r) => acc + r.diasFalta, 0),
       totalHorasExtra: monthlyReports.reduce((acc, r) => acc + r.horasExtra, 0),
+      totalFolgasTrabalhadas: monthlyReports.reduce((acc, r) => acc + r.folgasTrabalhadas, 0),
       colaboradores: monthlyReports.length,
     };
   }, [monthlyReports]);
@@ -300,7 +323,7 @@ export default function AdminRelatorios() {
       reportData = {
         title: 'Relatório Mensal de Horas e Presenças',
         subtitle: monthLabel,
-        headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra'],
+        headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Folgas Trab.'],
         rows: monthlyReports.map(r => [
           r.nome,
           r.cargo || '-',
@@ -309,6 +332,7 @@ export default function AdminRelatorios() {
           Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
           r.diasFalta,
           r.horasExtra,
+          Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
         ]),
       };
     } else if (type === 'ferias') {
@@ -338,7 +362,7 @@ export default function AdminRelatorios() {
     if (type === 'resumo') {
       reportData = {
         title: 'Relatório Mensal',
-        headers: ['Colaborador', 'Cargo', 'Dias Trabalhados', 'Horas Trabalhadas', 'Dias Férias', 'Dias Falta', 'Horas Extra'],
+        headers: ['Colaborador', 'Cargo', 'Dias Trabalhados', 'Horas Trabalhadas', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Folgas Trabalhadas'],
         rows: monthlyReports.map(r => [
           r.nome,
           r.cargo || '-',
@@ -347,6 +371,7 @@ export default function AdminRelatorios() {
           Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
           r.diasFalta,
           r.horasExtra,
+          Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
         ]),
       };
     } else if (type === 'ferias') {
@@ -567,6 +592,7 @@ export default function AdminRelatorios() {
                         <TableHead className="text-center">Férias</TableHead>
                         <TableHead className="text-center">Faltas</TableHead>
                         <TableHead className="text-center">Horas Extra</TableHead>
+                        <TableHead className="text-center">Folgas Trab.</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -593,11 +619,20 @@ export default function AdminRelatorios() {
                               <Badge className="bg-warning/20 text-warning">{report.horasExtra}h</Badge>
                             ) : '-'}
                           </TableCell>
+                          <TableCell className="text-center">
+                            {report.folgasTrabalhadas > 0 ? (
+                              <Badge className="bg-primary/20 text-primary">
+                                {Number.isInteger(report.folgasTrabalhadas)
+                                  ? `${report.folgasTrabalhadas}h`
+                                  : `${report.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`}
+                              </Badge>
+                            ) : '-'}
+                          </TableCell>
                         </TableRow>
                       ))}
                       {monthlyReports.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                             Nenhum dado encontrado para o período selecionado
                           </TableCell>
                         </TableRow>

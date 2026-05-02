@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import Ferias from "./pages/Ferias";
 import Faltas from "./pages/Faltas";
 import HorasExtra from "./pages/HorasExtra";
+import FolgasTrabalhadas from "./pages/FolgasTrabalhadas";
 import Documentos from "./pages/Documentos";
 import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminEquipa from "./pages/admin/AdminEquipa";
@@ -45,6 +46,7 @@ const App = () => (
               <Route path="/ferias" element={<Ferias />} />
               <Route path="/faltas" element={<Faltas />} />
               <Route path="/horas-extra" element={<HorasExtra />} />
+              <Route path="/folgas-trabalhadas" element={<FolgasTrabalhadas />} />
               <Route path="/documentos" element={<Documentos />} />
               
               {/* Admin Routes */}
