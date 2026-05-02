@@ -571,7 +571,16 @@ export default function AdminAprovacoes() {
               <div>
                 <p className="text-2xl font-bold">{pendingPontos.length}</p>
                 <p className="text-xs text-muted-foreground">Ponto</p>
+            <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-background/80 backdrop-blur border border-border/50">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
+                <CalendarCheck className="h-5 w-5 text-primary" />
               </div>
+              <div>
+                <p className="text-2xl font-bold">{pendingFolgas.length}</p>
+                <p className="text-xs text-muted-foreground">Folgas Trab.</p>
+              </div>
+            </div>
+          </div>
             </div>
           </div>
         </div>
@@ -612,6 +621,18 @@ export default function AdminAprovacoes() {
             {pendingPontos.length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
                 {pendingPontos.length}
+              </Badge>
+            )}
+          </TabsTrigger>
+          <TabsTrigger
+            value="folgas"
+            className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            <CalendarCheck className="h-4 w-4" />
+            Folgas Trab.
+            {pendingFolgas.length > 0 && (
+              <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
+                {pendingFolgas.length}
               </Badge>
             )}
           </TabsTrigger>
