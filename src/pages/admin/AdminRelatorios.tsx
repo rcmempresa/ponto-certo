@@ -323,7 +323,7 @@ export default function AdminRelatorios() {
       reportData = {
         title: 'Relatório Mensal de Horas e Presenças',
         subtitle: monthLabel,
-        headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Folgas Trab.'],
+        headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Folgas/Feriados'],
         rows: monthlyReports.map(r => [
           r.nome,
           r.cargo || '-',
@@ -362,7 +362,7 @@ export default function AdminRelatorios() {
     if (type === 'resumo') {
       reportData = {
         title: 'Relatório Mensal',
-        headers: ['Colaborador', 'Cargo', 'Dias Trabalhados', 'Horas Trabalhadas', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Folgas Trabalhadas'],
+        headers: ['Colaborador', 'Cargo', 'Dias Trabalhados', 'Horas Trabalhadas', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Folgas e Feriados'],
         rows: monthlyReports.map(r => [
           r.nome,
           r.cargo || '-',
@@ -592,7 +592,7 @@ export default function AdminRelatorios() {
                         <TableHead className="text-center">Férias</TableHead>
                         <TableHead className="text-center">Faltas</TableHead>
                         <TableHead className="text-center">Horas Extra</TableHead>
-                        <TableHead className="text-center">Folgas Trab.</TableHead>
+                        <TableHead className="text-center">Folgas/Feriados</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>

@@ -23,7 +23,7 @@ const userMenuItems = [
   { title: 'Férias', url: '/ferias', icon: Calendar },
   { title: 'Faltas', url: '/faltas', icon: FileText },
   { title: 'Horas Extra', url: '/horas-extra', icon: Timer },
-  { title: 'Folgas Trabalhadas', url: '/folgas-trabalhadas', icon: CalendarCheck },
+  { title: 'Folgas e Feriados', url: '/folgas-trabalhadas', icon: CalendarCheck },
   { title: 'Documentos', url: '/documentos', icon: FolderOpen },
 ];
 

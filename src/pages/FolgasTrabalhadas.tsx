@@ -140,7 +140,7 @@ export default function FolgasTrabalhadas() {
                 <CalendarCheck className="h-5 w-5 text-primary" />
               </div>
             </div>
-            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">Folgas Trabalhadas</h1>
+            <h1 className="text-3xl md:text-4xl font-bold tracking-tight mb-2">Folgas e Feriados</h1>
             <p className="text-muted-foreground text-lg">
               Registe horas trabalhadas em sábados, domingos e feriados
             </p>
