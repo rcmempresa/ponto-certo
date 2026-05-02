@@ -70,6 +70,14 @@ interface HorasExtraRecord {
   status: string;
 }
 
+interface FolgaTrabalhadaRecord {
+  id: string;
+  user_id: string;
+  data: string;
+  horas: number;
+  status: string;
+}
+
 interface EmployeeMonthlyReport {
   userId: string;
   nome: string;
@@ -79,6 +87,7 @@ interface EmployeeMonthlyReport {
   diasFerias: number;
   diasFalta: number;
   horasExtra: number;
+  folgasTrabalhadas: number;
   saldoFerias: number;
 }
 
@@ -88,6 +97,7 @@ export default function AdminRelatorios() {
   const [feriasRecords, setFeriasRecords] = useState<FeriasRecord[]>([]);
   const [faltasRecords, setFaltasRecords] = useState<FaltaRecord[]>([]);
   const [horasExtraRecords, setHorasExtraRecords] = useState<HorasExtraRecord[]>([]);
+  const [folgasTrabRecords, setFolgasTrabRecords] = useState<FolgaTrabalhadaRecord[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
   const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
   const [loading, setLoading] = useState(true);
