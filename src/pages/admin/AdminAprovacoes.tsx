@@ -515,7 +515,8 @@ export default function AdminAprovacoes() {
   const pendingFerias = ferias.filter((f) => f.status === 'pendente');
   const pendingFaltas = faltas.filter((f) => f.status === 'pendente');
   const pendingPontos = pontos.filter((p) => p.status === 'pendente');
-  const totalPending = pendingFerias.length + pendingFaltas.length + pendingPontos.length;
+  const pendingFolgas = folgasTrab.filter((f) => f.status === 'pendente');
+  const totalPending = pendingFerias.length + pendingFaltas.length + pendingPontos.length + pendingFolgas.length;
 
   return (
     <div className="space-y-8 animate-fade-in">
