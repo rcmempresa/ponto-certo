@@ -278,6 +278,7 @@ export default function AdminRelatorios() {
       totalDiasFerias: monthlyReports.reduce((acc, r) => acc + r.diasFerias, 0),
       totalDiasFalta: monthlyReports.reduce((acc, r) => acc + r.diasFalta, 0),
       totalHorasExtra: monthlyReports.reduce((acc, r) => acc + r.horasExtra, 0),
+      totalFolgasTrabalhadas: monthlyReports.reduce((acc, r) => acc + r.folgasTrabalhadas, 0),
       colaboradores: monthlyReports.length,
     };
   }, [monthlyReports]);
