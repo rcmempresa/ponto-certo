@@ -592,6 +592,7 @@ export default function AdminRelatorios() {
                         <TableHead className="text-center">Férias</TableHead>
                         <TableHead className="text-center">Faltas</TableHead>
                         <TableHead className="text-center">Horas Extra</TableHead>
+                        <TableHead className="text-center">Folgas Trab.</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -616,6 +617,15 @@ export default function AdminRelatorios() {
                           <TableCell className="text-center">
                             {report.horasExtra > 0 ? (
                               <Badge className="bg-warning/20 text-warning">{report.horasExtra}h</Badge>
+                            ) : '-'}
+                          </TableCell>
+                          <TableCell className="text-center">
+                            {report.folgasTrabalhadas > 0 ? (
+                              <Badge className="bg-primary/20 text-primary">
+                                {Number.isInteger(report.folgasTrabalhadas)
+                                  ? `${report.folgasTrabalhadas}h`
+                                  : `${report.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`}
+                              </Badge>
                             ) : '-'}
                           </TableCell>
                         </TableRow>
