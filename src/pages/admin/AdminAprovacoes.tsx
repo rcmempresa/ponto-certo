@@ -587,51 +587,52 @@ export default function AdminAprovacoes() {
       </div>
 
       <Tabs defaultValue="ferias" className="space-y-6">
-        <TabsList className="bg-muted/50 p-1 rounded-xl">
+        <TabsList className="bg-muted/50 p-1 rounded-xl w-full flex flex-wrap h-auto gap-1 sm:w-auto sm:inline-flex sm:flex-nowrap">
           <TabsTrigger 
             value="ferias" 
-            className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="flex-1 sm:flex-none gap-1.5 sm:gap-2 rounded-lg text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
             <Calendar className="h-4 w-4" />
             Férias
             {pendingFerias.length > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
+              <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
                 {pendingFerias.length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger 
             value="faltas" 
-            className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="flex-1 sm:flex-none gap-1.5 sm:gap-2 rounded-lg text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
             <FileText className="h-4 w-4" />
             Faltas
             {pendingFaltas.length > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
+              <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
                 {pendingFaltas.length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger 
             value="ponto" 
-            className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="flex-1 sm:flex-none gap-1.5 sm:gap-2 rounded-lg text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
             <Timer className="h-4 w-4" />
             Ponto
             {pendingPontos.length > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
+              <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
                 {pendingPontos.length}
               </Badge>
             )}
           </TabsTrigger>
           <TabsTrigger
             value="folgas"
-            className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"
+            className="flex-1 sm:flex-none gap-1.5 sm:gap-2 rounded-lg text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
             <CalendarCheck className="h-4 w-4" />
-            Folgas/Feriados
+            <span className="hidden xs:inline sm:inline">Folgas/Feriados</span>
+            <span className="inline xs:hidden sm:hidden">Folgas</span>
             {pendingFolgas.length > 0 && (
-              <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
+              <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
                 {pendingFolgas.length}
               </Badge>
             )}
