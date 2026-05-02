@@ -144,6 +144,7 @@ export default function AdminAprovacoes() {
   const [ferias, setFerias] = useState<FeriasRequest[]>([]);
   const [faltas, setFaltas] = useState<FaltaRequest[]>([]);
   const [pontos, setPontos] = useState<PontoRequest[]>([]);
+  const [folgasTrab, setFolgasTrab] = useState<FolgaTrabRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingId, setProcessingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -210,7 +211,48 @@ export default function AdminAprovacoes() {
       setPontos(pontoWithProfiles);
     }
 
+    const { data: folgasData } = await supabase
+      .from('folgas_trabalhadas')
+      .select('*')
+      .order('created_at', { ascending: false });
+
+    if (folgasData && profiles) {
+      setFolgasTrab(
+        folgasData.map((f) => ({
+          ...f,
+          profile: profiles.find((p) => p.id === f.user_id),
+        })) as FolgaTrabRequest[]
+      );
+    }
+
     setLoading(false);
+  };
+
+  const handleFolgaAction = async (id: string, action: 'aprovado' | 'rejeitado') => {
+    setProcessingId(id);
+    const { error } = await supabase.from('folgas_trabalhadas').update({ status: action }).eq('id', id);
+    if (error) {
+      toast({ title: 'Erro', description: 'Não foi possível processar.', variant: 'destructive' });
+    } else {
+      toast({
+        title: action === 'aprovado' ? 'Folga trabalhada aprovada' : 'Folga trabalhada rejeitada',
+        description: 'O colaborador será notificado.',
+      });
+      fetchRequests();
+    }
+    setProcessingId(null);
+  };
+
+  const handleDeleteFolga = async (id: string) => {
+    setDeletingId(id);
+    const { error } = await supabase.from('folgas_trabalhadas').delete().eq('id', id);
+    if (error) {
+      toast({ title: 'Erro', description: 'Não foi possível eliminar.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Eliminado', description: 'O registo foi eliminado.' });
+      fetchRequests();
+    }
+    setDeletingId(null);
   };
 
   const handleFeriasAction = async (id: string, action: 'aprovado' | 'rejeitado') => {
