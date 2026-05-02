@@ -323,7 +323,7 @@ export default function AdminRelatorios() {
       reportData = {
         title: 'Relatório Mensal de Horas e Presenças',
         subtitle: monthLabel,
-        headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra'],
+        headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Folgas Trab.'],
         rows: monthlyReports.map(r => [
           r.nome,
           r.cargo || '-',
@@ -332,6 +332,7 @@ export default function AdminRelatorios() {
           Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
           r.diasFalta,
           r.horasExtra,
+          Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
         ]),
       };
     } else if (type === 'ferias') {
@@ -361,7 +362,7 @@ export default function AdminRelatorios() {
     if (type === 'resumo') {
       reportData = {
         title: 'Relatório Mensal',
-        headers: ['Colaborador', 'Cargo', 'Dias Trabalhados', 'Horas Trabalhadas', 'Dias Férias', 'Dias Falta', 'Horas Extra'],
+        headers: ['Colaborador', 'Cargo', 'Dias Trabalhados', 'Horas Trabalhadas', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Folgas Trabalhadas'],
         rows: monthlyReports.map(r => [
           r.nome,
           r.cargo || '-',
@@ -370,6 +371,7 @@ export default function AdminRelatorios() {
           Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
           r.diasFalta,
           r.horasExtra,
+          Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
         ]),
       };
     } else if (type === 'ferias') {
