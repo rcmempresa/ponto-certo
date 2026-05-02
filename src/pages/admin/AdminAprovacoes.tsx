@@ -577,7 +577,7 @@ export default function AdminAprovacoes() {
               </div>
               <div>
                 <p className="text-2xl font-bold">{pendingFolgas.length}</p>
-                <p className="text-xs text-muted-foreground">Folgas Trab.</p>
+                <p className="text-xs text-muted-foreground">Folgas/Feriados</p>
               </div>
             </div>
           </div>
@@ -629,7 +629,7 @@ export default function AdminAprovacoes() {
             className="gap-2 rounded-lg data-[state=active]:bg-background data-[state=active]:shadow-sm"
           >
             <CalendarCheck className="h-4 w-4" />
-            Folgas Trab.
+            Folgas/Feriados
             {pendingFolgas.length > 0 && (
               <Badge variant="secondary" className="ml-1 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
                 {pendingFolgas.length}
@@ -1121,7 +1121,7 @@ export default function AdminAprovacoes() {
                   <CalendarCheck className="h-5 w-5 text-primary" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-semibold">Folgas Trabalhadas</h2>
+                  <h2 className="text-lg font-semibold">Folgas e Feriados</h2>
                   <p className="text-sm text-muted-foreground">{folgasTrab.length} registos no total</p>
                 </div>
               </div>
