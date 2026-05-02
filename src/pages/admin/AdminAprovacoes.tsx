@@ -571,6 +571,8 @@ export default function AdminAprovacoes() {
               <div>
                 <p className="text-2xl font-bold">{pendingPontos.length}</p>
                 <p className="text-xs text-muted-foreground">Ponto</p>
+              </div>
+            </div>
             <div className="flex items-center gap-3 px-5 py-3 rounded-xl bg-background/80 backdrop-blur border border-border/50">
               <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary/10">
                 <CalendarCheck className="h-5 w-5 text-primary" />
@@ -579,8 +581,6 @@ export default function AdminAprovacoes() {
                 <p className="text-2xl font-bold">{pendingFolgas.length}</p>
                 <p className="text-xs text-muted-foreground">Folgas/Feriados</p>
               </div>
-            </div>
-          </div>
             </div>
           </div>
         </div>
