@@ -154,6 +154,45 @@ export type Database = {
         }
         Relationships: []
       }
+      folgas_trabalhadas: {
+        Row: {
+          created_at: string
+          data: string
+          horas: number
+          id: string
+          motivo: string | null
+          status: string
+          tipo_dia: string
+          tipo_periodo: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          data: string
+          horas?: number
+          id?: string
+          motivo?: string | null
+          status?: string
+          tipo_dia?: string
+          tipo_periodo?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          data?: string
+          horas?: number
+          id?: string
+          motivo?: string | null
+          status?: string
+          tipo_dia?: string
+          tipo_periodo?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       horas_extra: {
         Row: {
           created_at: string
