@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Clock, Plus, Loader2, Calendar, CheckCircle2, XCircle, Timer, Trash2 } from 'lucide-react';
+import { Clock, Plus, Loader2, Calendar, CheckCircle2, XCircle, Timer, Trash2, Euro } from 'lucide-react';
+
+const RATE_PER_HOUR = 8.16;
+const formatEuros = (minutos: number) =>
+  `${((minutos / 60) * RATE_PER_HOUR).toFixed(2).replace('.', ',')} €`;
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
