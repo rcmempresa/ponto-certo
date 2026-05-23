@@ -281,6 +281,9 @@ export default function HorasExtra() {
                     <TableCell className="font-semibold">
                       {formatOvertimeMinutes(record.minutos_extra)}
                     </TableCell>
+                    <TableCell className="font-semibold text-success">
+                      {formatEuros(record.minutos_extra)}
+                    </TableCell>
                     <TableCell>
                       {record.motivo && (
                         <span className="text-sm text-muted-foreground truncate max-w-[200px] block">
