@@ -219,6 +219,20 @@ export default function HorasExtra() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="border-0 shadow-soft">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
+                <Euro className="h-6 w-6 text-success" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Valor a Receber</p>
+                <p className="text-2xl font-bold text-success">{formatEuros(stats.totalApproved)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Records Table */}
