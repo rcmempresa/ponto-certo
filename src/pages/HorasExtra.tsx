@@ -262,6 +262,7 @@ export default function HorasExtra() {
                   <TableHead>Período</TableHead>
                   <TableHead>Horário</TableHead>
                   <TableHead>Duração</TableHead>
+                  <TableHead>Valor</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead></TableHead>
