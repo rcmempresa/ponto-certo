@@ -1,5 +1,9 @@
 import { useState, useEffect } from 'react';
-import { Clock, Plus, Loader2, Calendar, CheckCircle2, XCircle, Timer, Trash2 } from 'lucide-react';
+import { Clock, Plus, Loader2, Calendar, CheckCircle2, XCircle, Timer, Trash2, Euro } from 'lucide-react';
+
+const RATE_PER_HOUR = 8.16;
+const formatEuros = (minutos: number) =>
+  `${((minutos / 60) * RATE_PER_HOUR).toFixed(2).replace('.', ',')} €`;
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -173,7 +177,7 @@ export default function HorasExtra() {
       </div>
 
       {/* Stats Cards */}
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-0 shadow-soft">
           <CardContent className="p-6">
             <div className="flex items-center gap-4">
@@ -215,6 +219,20 @@ export default function HorasExtra() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="border-0 shadow-soft">
+          <CardContent className="p-6">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
+                <Euro className="h-6 w-6 text-success" />
+              </div>
+              <div>
+                <p className="text-sm text-muted-foreground">Valor a Receber</p>
+                <p className="text-2xl font-bold text-success">{formatEuros(stats.totalApproved)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Records Table */}
@@ -244,6 +262,7 @@ export default function HorasExtra() {
                   <TableHead>Período</TableHead>
                   <TableHead>Horário</TableHead>
                   <TableHead>Duração</TableHead>
+                  <TableHead>Valor</TableHead>
                   <TableHead>Tipo</TableHead>
                   <TableHead>Status</TableHead>
                   <TableHead></TableHead>
@@ -261,6 +280,9 @@ export default function HorasExtra() {
                     </TableCell>
                     <TableCell className="font-semibold">
                       {formatOvertimeMinutes(record.minutos_extra)}
+                    </TableCell>
+                    <TableCell className="font-semibold text-success">
+                      {formatEuros(record.minutos_extra)}
                     </TableCell>
                     <TableCell>
                       {record.motivo && (
