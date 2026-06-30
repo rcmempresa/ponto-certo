@@ -17,6 +17,7 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
@@ -37,6 +38,7 @@ interface FaltaRecord {
 
 export default function Faltas() {
   const { user } = useAuth();
+  const { effectiveUserId, isImpersonating } = useEffectiveUser();
   const { toast } = useToast();
   const [faltas, setFaltas] = useState<FaltaRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -83,7 +85,7 @@ export default function Faltas() {
   };
 
   const handleSubmit = async () => {
-    if (!user || !formData.data || !formData.motivo) return;
+    if (!user || !formData.data || !formData.motivo || isImpersonating) return;
 
     setSubmitting(true);
     let comprovanteUrl = null;
