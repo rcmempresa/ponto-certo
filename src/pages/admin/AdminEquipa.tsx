@@ -364,10 +364,21 @@ export default function AdminEquipa() {
                     variant="outline"
                     size="sm"
                     className="flex-1 rounded-xl border-border/50 hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
+                    onClick={async () => {
+                      await startImpersonation(profile.id);
+                      navigate('/dashboard');
+                    }}
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    Ver painel
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl border-border/50 hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
                     onClick={() => handleEdit(profile)}
                   >
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Editar
+                    <Pencil className="h-4 w-4" />
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
