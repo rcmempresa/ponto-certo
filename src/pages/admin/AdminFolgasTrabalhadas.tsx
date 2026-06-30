@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { CalendarCheck, Loader2, CheckCircle2, Timer, User } from 'lucide-react';
+import { CalendarCheck, Loader2, CheckCircle2, Timer, User, Euro } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -39,11 +39,13 @@ interface FolgaRecord {
   profile?: Profile;
 }
 
+const RATE_PER_HOUR = 8.16;
 const formatHoras = (h: number) => {
   const i = Math.floor(h);
   const m = Math.round((h - i) * 60);
   return m === 0 ? `${i}h` : `${i}h${String(m).padStart(2, '0')}`;
 };
+const formatEuros = (h: number) => `${(h * RATE_PER_HOUR).toFixed(2).replace('.', ',')} €`;
 
 export default function AdminFolgasTrabalhadas() {
   const [loading, setLoading] = useState(true);
