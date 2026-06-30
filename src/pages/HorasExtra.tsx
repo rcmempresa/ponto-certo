@@ -253,10 +253,12 @@ export default function HorasExtra() {
             <div className="text-center py-12">
               <Clock className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">Ainda não existem registos de horas extra.</p>
-              <Button onClick={() => setDialogOpen(true)} className="mt-4 rounded-xl">
-                <Plus className="mr-2 h-4 w-4" />
-                Registar Horas Extra
-              </Button>
+              {!isImpersonating && (
+                <Button onClick={() => setDialogOpen(true)} className="mt-4 rounded-xl">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Registar Horas Extra
+                </Button>
+              )}
             </div>
           ) : (
             <Table>
