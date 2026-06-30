@@ -79,6 +79,7 @@ interface FeriasRecord {
 
 export default function Ferias() {
   const { user, profile, refreshProfile } = useAuth();
+  const { effectiveUserId, effectiveProfile, isImpersonating } = useEffectiveUser();
   const { toast } = useToast();
   const [ferias, setFerias] = useState<FeriasRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,19 +92,19 @@ export default function Ferias() {
   const [tipoPeriodoSingleDay, setTipoPeriodoSingleDay] = useState<'dia_inteiro' | 'manha' | 'tarde'>('dia_inteiro');
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchFerias();
-      refreshProfile();
+      if (!isImpersonating) refreshProfile();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchFerias = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     const { data, error } = await supabase
       .from('ferias')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .order('created_at', { ascending: false });
 
     if (data) {
