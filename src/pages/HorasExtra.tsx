@@ -319,7 +319,7 @@ export default function HorasExtra() {
       </Card>
 
       {/* Dialog */}
-      {user && (
+      {user && !isImpersonating && (
         <OvertimeDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
