@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Users, Pencil, Loader2, Shield, User, Briefcase, Calendar, Search, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, Pencil, Loader2, Shield, User, Briefcase, Calendar, Search, Trash2, Eye } from 'lucide-react';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,6 +47,8 @@ interface Profile {
 
 export default function AdminEquipa() {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { startImpersonation } = useImpersonation();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [filteredProfiles, setFilteredProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
