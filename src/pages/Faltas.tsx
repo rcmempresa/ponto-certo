@@ -56,23 +56,24 @@ export default function Faltas() {
   const [file, setFile] = useState<File | null>(null);
 
   const handleJustifyDay = (date: string) => {
+    if (isImpersonating) return;
     setFormData({ ...formData, data: date, tipo_falta: 'dia_inteiro', hora_inicio: '', hora_fim: '' });
     setDialogOpen(true);
   };
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchFaltas();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchFaltas = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     const { data, error } = await supabase
       .from('faltas')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .order('created_at', { ascending: false });
 
     if (data) {
