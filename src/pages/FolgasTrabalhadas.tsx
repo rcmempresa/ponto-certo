@@ -147,10 +147,12 @@ export default function FolgasTrabalhadas() {
               Registe horas trabalhadas em sábados, domingos e feriados
             </p>
           </div>
-          <Button onClick={() => setDialogOpen(true)} size="lg" className="rounded-xl">
-            <Plus className="mr-2 h-5 w-5" />
-            Registar Folga Trabalhada
-          </Button>
+          {!isImpersonating && (
+            <Button onClick={() => setDialogOpen(true)} size="lg" className="rounded-xl">
+              <Plus className="mr-2 h-5 w-5" />
+              Registar Folga Trabalhada
+            </Button>
+          )}
         </div>
       </div>
 
@@ -239,7 +241,7 @@ export default function FolgasTrabalhadas() {
                     </TableCell>
                     <TableCell>{getStatusBadge(r.status)}</TableCell>
                     <TableCell>
-                      {r.status === 'pendente' && (
+                      {r.status === 'pendente' && !isImpersonating && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -258,7 +260,7 @@ export default function FolgasTrabalhadas() {
         </CardContent>
       </Card>
 
-      {user && (
+      {user && !isImpersonating && (
         <FolgaTrabalhadaDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}
