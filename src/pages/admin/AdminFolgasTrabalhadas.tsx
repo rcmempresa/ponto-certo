@@ -177,6 +177,7 @@ export default function AdminFolgasTrabalhadas() {
                   <TableHead>Total Aprovado</TableHead>
                   <TableHead>Pendente</TableHead>
                   <TableHead>Este Mês</TableHead>
+                  <TableHead>Valor (Aprovado)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -197,6 +198,9 @@ export default function AdminFolgasTrabalhadas() {
                     <TableCell className="font-semibold">
                       {formatHoras(s.monthlyApproved)}
                     </TableCell>
+                    <TableCell className="font-semibold text-success">
+                      {formatEuros(s.totalApproved)}
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -206,7 +210,7 @@ export default function AdminFolgasTrabalhadas() {
       ) : (
         <>
           {selectedSummary && (
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
               <Card className="border-0 shadow-soft">
                 <CardContent className="p-6">
                   <div className="flex items-center gap-4">
@@ -246,6 +250,19 @@ export default function AdminFolgasTrabalhadas() {
                   </div>
                 </CardContent>
               </Card>
+              <Card className="border-0 shadow-soft">
+                <CardContent className="p-6">
+                  <div className="flex items-center gap-4">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-success/10">
+                      <Euro className="h-6 w-6 text-success" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Valor a Pagar</p>
+                      <p className="text-2xl font-bold text-success">{formatEuros(selectedSummary.totalApproved)}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -267,6 +284,7 @@ export default function AdminFolgasTrabalhadas() {
                       <TableHead>Tipo</TableHead>
                       <TableHead>Período</TableHead>
                       <TableHead>Horas</TableHead>
+                      <TableHead>Valor</TableHead>
                       <TableHead>Motivo</TableHead>
                       <TableHead>Status</TableHead>
                     </TableRow>
@@ -282,6 +300,7 @@ export default function AdminFolgasTrabalhadas() {
                           {r.tipo_periodo === 'dia_inteiro' ? 'Dia inteiro' : 'Meio dia'}
                         </TableCell>
                         <TableCell className="font-semibold">{formatHoras(Number(r.horas))}</TableCell>
+                        <TableCell className="font-semibold text-success">{formatEuros(Number(r.horas))}</TableCell>
                         <TableCell className="max-w-[240px] truncate text-sm text-muted-foreground">
                           {r.motivo || '-'}
                         </TableCell>
