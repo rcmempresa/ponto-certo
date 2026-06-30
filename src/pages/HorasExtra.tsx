@@ -171,10 +171,12 @@ export default function HorasExtra() {
             </p>
           </div>
 
-          <Button onClick={() => setDialogOpen(true)} size="lg" className="rounded-xl">
-            <Plus className="mr-2 h-5 w-5" />
-            Registar Horas Extra
-          </Button>
+          {!isImpersonating && (
+            <Button onClick={() => setDialogOpen(true)} size="lg" className="rounded-xl">
+              <Plus className="mr-2 h-5 w-5" />
+              Registar Horas Extra
+            </Button>
+          )}
         </div>
       </div>
 
