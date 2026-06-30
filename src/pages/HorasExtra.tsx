@@ -47,6 +47,7 @@ interface HorasExtraRecord {
 
 export default function HorasExtra() {
   const { user } = useAuth();
+  const { effectiveUserId, isImpersonating } = useEffectiveUser();
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<HorasExtraRecord[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -58,19 +59,19 @@ export default function HorasExtra() {
   });
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchRecords();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchRecords = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     setLoading(true);
 
     const { data, error } = await supabase
       .from('horas_extra')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .order('data', { ascending: false });
 
     if (data) {
