@@ -1,19 +1,52 @@
-## Objetivo
+# Painel Admin — Folgas/Feriados por colaborador + modo "Ver como"
 
-Mostrar valores monetários em euros na página **Horas Extra** do utilizador, usando uma taxa única de **8,16 €/hora** aplicada a todas as horas extra (noturnas e fim de semana). Apenas registos com estado **Aprovado** somam ao total.
+## 1. Nova página admin: Folgas e Feriados
 
-## Alterações
+Criar `src/pages/admin/AdminFolgasTrabalhadas.tsx` (estrutura igual à `AdminHorasExtra`):
 
-### `src/pages/HorasExtra.tsx`
-1. Definir constante `RATE_PER_HOUR = 8.16` e helper `formatEuros(minutos)` → `(minutos/60 * 8.16).toFixed(2) + ' €'`.
-2. Adicionar um 4º card nas estatísticas: **"Valor a Receber"** (total aprovado em €), com ícone Euro e estilo igual aos restantes. Grid passa de `md:grid-cols-3` para `md:grid-cols-2 lg:grid-cols-4` para manter responsividade no telemóvel.
-3. Adicionar nova coluna **"Valor"** na tabela do histórico, à direita da coluna "Duração", mostrando o valor em € de cada registo (independentemente do estado, mas só os aprovados contam para o total no card).
+- Filtro por colaborador (dropdown com todos os profiles) + navegação por mês.
+- Tabela com todos os registos de `folgas_trabalhadas` do colaborador escolhido (ou todos).
+- 3 cards de resumo por colaborador selecionado:
+  - **Total Aprovado** — soma acumulada de todos os registos aprovados.
+  - **Pendente** — soma de todos os pendentes.
+  - **Este Mês** — soma dos aprovados do mês atual.
+- Quando "Todos" estiver selecionado, mostrar uma tabela-resumo por colaborador com as 3 colunas acima.
+- Ações já existentes (aprovar/rejeitar) mantêm-se via página de Aprovações; aqui é só visualização e consulta.
 
-### Sem alterações
-- Base de dados, RLS, triggers — nada muda (cálculo feito no frontend a partir de `minutos_extra`).
-- Página admin e relatórios — fora do âmbito (utilizador pediu só na página pessoal).
-- Folgas/Feriados — não incluído.
+Rota: `/admin/folgas-trabalhadas` em `src/App.tsx`, protegida por admin.
+Sidebar (`AppSidebar.tsx`): adicionar entrada "Folgas/Feriados" na secção Admin.
 
-## Notas técnicas
-- Cálculo: `valor = (minutos_extra / 60) * 8.16`, formatado com 2 casas decimais e sufixo `€`.
-- Cores: usar `text-success` para o card de valor a receber (consistente com "Total Aprovado").
+## 2. Modo "Ver como colaborador"
+
+Permite ao admin entrar no painel de um utilizador em **modo só-leitura** para confirmar o que ele vê.
+
+- Novo contexto `ImpersonationContext` (`src/contexts/ImpersonationContext.tsx`):
+  - Estado: `{ impersonatedUserId, impersonatedProfile, startImpersonation(userId), stopImpersonation() }`.
+  - Persistido em `sessionStorage` (limpo ao terminar sessão).
+- Hook utilitário `useEffectiveUserId()` que devolve `impersonatedUserId ?? auth.user.id`.
+- Atualizar as páginas de utilizador (`Dashboard`, `HorasExtra`, `FolgasTrabalhadas`, `Ferias`, `Faltas`, `Documentos`) para usarem `useEffectiveUserId()` ao consultar dados próprios.
+- Quando em modo impersonação: esconder/desativar botões de submissão (registar ponto, pedir férias, pedir horas extra, etc.). Banner fixo no topo: "A ver como **Nome do colaborador** · [Sair]".
+- Botão "Ver painel" em `AdminEquipa` (lista de colaboradores) que chama `startImpersonation(id)` e navega para `/`.
+
+## 3. Backend / RLS
+
+Sem migrações novas. Admin já tem políticas SELECT em todas as tabelas relevantes (`folgas_trabalhadas`, `ferias`, `horas_extra`, `ponto`, `faltas`), portanto a impersonação no cliente apenas substitui o `user_id` nas queries — não precisa de privilégios extra.
+
+A escrita continua a usar `auth.uid()` real; como bloqueamos os botões em modo impersonação, não há risco de o admin criar registos em nome do colaborador.
+
+## Detalhes técnicos
+
+- Ficheiros novos:
+  - `src/pages/admin/AdminFolgasTrabalhadas.tsx`
+  - `src/contexts/ImpersonationContext.tsx`
+  - `src/components/layout/ImpersonationBanner.tsx`
+- Ficheiros alterados:
+  - `src/App.tsx` (rota + provider + banner)
+  - `src/components/layout/AppSidebar.tsx` (entrada admin)
+  - `src/pages/admin/AdminEquipa.tsx` (botão "Ver painel")
+  - Páginas de utilizador para usar `useEffectiveUserId`
+
+## Fora de âmbito
+
+- Sem valores monetários (€) nesta página, conforme escolha.
+- Sem alterar permissões de escrita no servidor (mantém-se `auth.uid()`).
