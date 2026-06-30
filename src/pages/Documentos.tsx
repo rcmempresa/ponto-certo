@@ -22,32 +22,27 @@ export default function Documentos() {
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const { user } = useAuth();
+  const { effectiveUserId } = useEffectiveUser();
 
   useEffect(() => {
     fetchDocumentos();
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchDocumentos = async () => {
-    if (!user) {
+    if (!effectiveUserId) {
       setLoading(false);
       return;
     }
 
-    // Fetch documents that are either:
-    // 1. Generally visible (visibilidade_geral = true)
-    // 2. User has specific permission in documento_permissoes
-    
-    // First get documents with general visibility
     const { data: generalDocs, error: generalError } = await supabase
       .from('documentos')
       .select('*')
       .eq('visibilidade_geral', true);
 
-    // Then get documents with specific user permissions
     const { data: permissionData, error: permError } = await supabase
       .from('documento_permissoes')
       .select('documento_id')
-      .eq('user_id', user.id);
+      .eq('user_id', effectiveUserId);
 
     if (permissionData && permissionData.length > 0) {
       const docIds = permissionData.map(p => p.documento_id);
