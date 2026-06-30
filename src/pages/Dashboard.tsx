@@ -98,7 +98,7 @@ export default function Dashboard() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">
-          {getGreeting()}, {profile?.nome?.split(' ')[0] || 'Colaborador'} 👋
+          {getGreeting()}, {effectiveProfile?.nome?.split(' ')[0] || 'Colaborador'} 👋
         </h1>
         <p className="text-muted-foreground">
           {format(new Date(), "EEEE, d 'de' MMMM 'de' yyyy", { locale: pt })}
@@ -116,7 +116,7 @@ export default function Dashboard() {
         <div className="space-y-4">
           <StatsCard
             title="Dias de Férias"
-            value={profile?.saldo_ferias !== undefined ? (Number.isInteger(profile.saldo_ferias) ? profile.saldo_ferias : profile.saldo_ferias.toFixed(1).replace('.', ',')) : 22}
+            value={effectiveProfile?.saldo_ferias !== undefined && effectiveProfile?.saldo_ferias !== null ? (Number.isInteger(effectiveProfile.saldo_ferias) ? effectiveProfile.saldo_ferias : effectiveProfile.saldo_ferias.toFixed(1).replace('.', ',')) : 22}
             subtitle="dias disponíveis"
             icon={Sun}
           />
