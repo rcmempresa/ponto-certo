@@ -12,6 +12,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { FolgaTrabalhadaDialog } from '@/components/folgas-trabalhadas/FolgaTrabalhadaDialog';
 import { format, startOfMonth, endOfMonth } from 'date-fns';
@@ -46,6 +47,7 @@ const formatHoras = (h: number) => {
 
 export default function FolgasTrabalhadas() {
   const { user } = useAuth();
+  const { effectiveUserId, isImpersonating } = useEffectiveUser();
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<Record[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -53,16 +55,16 @@ export default function FolgasTrabalhadas() {
   const [stats, setStats] = useState({ totalApproved: 0, totalPending: 0, monthlyApproved: 0 });
 
   useEffect(() => {
-    if (user) fetchRecords();
-  }, [user]);
+    if (effectiveUserId) fetchRecords();
+  }, [effectiveUserId]);
 
   const fetchRecords = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     setLoading(true);
     const { data } = await supabase
       .from('folgas_trabalhadas')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .order('data', { ascending: false });
 
     if (data) {
