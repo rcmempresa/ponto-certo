@@ -115,6 +115,7 @@ export default function Ferias() {
   };
 
   const handleSelectRange = (start: Date, end: Date) => {
+    if (isImpersonating) return;
     setSelectedRange({ start, end });
     setTipoInicio('manha');
     setTipoFim('tarde');
@@ -129,7 +130,7 @@ export default function Ferias() {
   };
 
   const handleSubmit = async () => {
-    if (!user || !selectedRange) return;
+    if (!user || !selectedRange || isImpersonating) return;
 
     const isSingleDaySubmit = isSameDay(selectedRange.start, selectedRange.end);
     
@@ -256,7 +257,7 @@ export default function Ferias() {
     ? countBusinessDays(selectedRange.start, selectedRange.end, effectiveTipos.inicio, effectiveTipos.fim)
     : 0;
   
-  const availableDays = profile?.saldo_ferias ?? 22;
+  const availableDays = effectiveProfile?.saldo_ferias ?? 22;
   const exceedsSaldo = selectedDays > availableDays;
 
   const formatDays = (days: number): string => {
