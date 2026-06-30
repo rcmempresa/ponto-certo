@@ -299,7 +299,7 @@ export default function HorasExtra() {
                     </TableCell>
                     <TableCell>{getStatusBadge(record.status)}</TableCell>
                     <TableCell>
-                      {record.status === 'pendente' && (
+                      {record.status === 'pendente' && !isImpersonating && (
                         <Button
                           variant="ghost"
                           size="icon"
