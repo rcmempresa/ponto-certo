@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { OvertimeDialog } from '@/components/horas-extra/OvertimeDialog';
 import { formatOvertimeMinutes } from '@/lib/overtimeCalculator';
