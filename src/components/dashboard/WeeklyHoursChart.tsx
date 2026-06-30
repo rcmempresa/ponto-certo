@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell } from 'recharts';
@@ -23,18 +24,19 @@ interface DayData {
 
 export function WeeklyHoursChart() {
   const { user } = useAuth();
+  const { effectiveUserId } = useEffectiveUser();
   const [data, setData] = useState<DayData[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalWeekHours, setTotalWeekHours] = useState(0);
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchWeekData();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchWeekData = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     const now = new Date();
     const weekStart = startOfWeek(now, { weekStartsOn: 1 }); // Monday
@@ -43,7 +45,7 @@ export function WeeklyHoursChart() {
     const { data: pontoData } = await supabase
       .from('ponto')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .gte('timestamp', weekStart.toISOString())
       .lte('timestamp', weekEnd.toISOString())
       .order('timestamp', { ascending: true });

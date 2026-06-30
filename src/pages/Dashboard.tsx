@@ -5,6 +5,7 @@ import { StatsCard } from '@/components/dashboard/StatsCard';
 import { WeeklyHoursChart } from '@/components/dashboard/WeeklyHoursChart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfMonth, endOfMonth, isSameDay, eachDayOfInterval } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -18,23 +19,24 @@ interface PontoRecord {
 
 export default function Dashboard() {
   const { profile, user } = useAuth();
+  const { effectiveUserId, effectiveProfile } = useEffectiveUser();
   const [recentPontos, setRecentPontos] = useState<PontoRecord[]>([]);
   const [monthStats, setMonthStats] = useState({ days: 0, hours: 0 });
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchRecentPontos();
       fetchMonthStats();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchRecentPontos = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     const { data } = await supabase
       .from('ponto')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .order('timestamp', { ascending: false })
       .limit(6);
 
@@ -44,13 +46,13 @@ export default function Dashboard() {
   };
 
   const fetchMonthStats = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     const now = new Date();
     const { data } = await supabase
       .from('ponto')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .gte('timestamp', startOfMonth(now).toISOString())
       .lte('timestamp', endOfMonth(now).toISOString())
       .order('timestamp', { ascending: true });
