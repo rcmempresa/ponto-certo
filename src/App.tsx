@@ -19,6 +19,7 @@ import AdminPonto from "./pages/admin/AdminPonto";
 import AdminAprovacoes from "./pages/admin/AdminAprovacoes";
 import AdminDocumentos from "./pages/admin/AdminDocumentos";
 import AdminHorasExtra from "./pages/admin/AdminHorasExtra";
+import AdminFolgasTrabalhadas from "./pages/admin/AdminFolgasTrabalhadas";
 import AdminRelatorios from "./pages/admin/AdminRelatorios";
 import NotFound from "./pages/NotFound";
 
@@ -95,6 +96,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requireAdmin>
                     <AdminHorasExtra />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/folgas-trabalhadas"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminFolgasTrabalhadas />
                   </ProtectedRoute>
                 }
               />

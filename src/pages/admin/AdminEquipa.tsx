@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
-import { Users, Pencil, Loader2, Shield, User, Briefcase, Calendar, Search, Trash2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Users, Pencil, Loader2, Shield, User, Briefcase, Calendar, Search, Trash2, Eye } from 'lucide-react';
+import { useImpersonation } from '@/contexts/ImpersonationContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -45,6 +47,8 @@ interface Profile {
 
 export default function AdminEquipa() {
   const { toast } = useToast();
+  const navigate = useNavigate();
+  const { startImpersonation } = useImpersonation();
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [filteredProfiles, setFilteredProfiles] = useState<Profile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -360,10 +364,21 @@ export default function AdminEquipa() {
                     variant="outline"
                     size="sm"
                     className="flex-1 rounded-xl border-border/50 hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
+                    onClick={async () => {
+                      await startImpersonation(profile.id);
+                      navigate('/dashboard');
+                    }}
+                  >
+                    <Eye className="mr-2 h-4 w-4" />
+                    Ver painel
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="rounded-xl border-border/50 hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
                     onClick={() => handleEdit(profile)}
                   >
-                    <Pencil className="mr-2 h-4 w-4" />
-                    Editar
+                    <Pencil className="h-4 w-4" />
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>

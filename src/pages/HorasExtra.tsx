@@ -16,6 +16,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { OvertimeDialog } from '@/components/horas-extra/OvertimeDialog';
 import { formatOvertimeMinutes } from '@/lib/overtimeCalculator';
@@ -47,6 +48,7 @@ interface HorasExtraRecord {
 
 export default function HorasExtra() {
   const { user } = useAuth();
+  const { effectiveUserId, isImpersonating } = useEffectiveUser();
   const [loading, setLoading] = useState(true);
   const [records, setRecords] = useState<HorasExtraRecord[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
@@ -58,19 +60,19 @@ export default function HorasExtra() {
   });
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchRecords();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchRecords = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
     setLoading(true);
 
     const { data, error } = await supabase
       .from('horas_extra')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .order('data', { ascending: false });
 
     if (data) {
@@ -169,10 +171,12 @@ export default function HorasExtra() {
             </p>
           </div>
 
-          <Button onClick={() => setDialogOpen(true)} size="lg" className="rounded-xl">
-            <Plus className="mr-2 h-5 w-5" />
-            Registar Horas Extra
-          </Button>
+          {!isImpersonating && (
+            <Button onClick={() => setDialogOpen(true)} size="lg" className="rounded-xl">
+              <Plus className="mr-2 h-5 w-5" />
+              Registar Horas Extra
+            </Button>
+          )}
         </div>
       </div>
 
@@ -249,10 +253,12 @@ export default function HorasExtra() {
             <div className="text-center py-12">
               <Clock className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
               <p className="text-muted-foreground">Ainda não existem registos de horas extra.</p>
-              <Button onClick={() => setDialogOpen(true)} className="mt-4 rounded-xl">
-                <Plus className="mr-2 h-4 w-4" />
-                Registar Horas Extra
-              </Button>
+              {!isImpersonating && (
+                <Button onClick={() => setDialogOpen(true)} className="mt-4 rounded-xl">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Registar Horas Extra
+                </Button>
+              )}
             </div>
           ) : (
             <Table>
@@ -293,7 +299,7 @@ export default function HorasExtra() {
                     </TableCell>
                     <TableCell>{getStatusBadge(record.status)}</TableCell>
                     <TableCell>
-                      {record.status === 'pendente' && (
+                      {record.status === 'pendente' && !isImpersonating && (
                         <Button
                           variant="ghost"
                           size="icon"
@@ -313,7 +319,7 @@ export default function HorasExtra() {
       </Card>
 
       {/* Dialog */}
-      {user && (
+      {user && !isImpersonating && (
         <OvertimeDialog
           open={dialogOpen}
           onOpenChange={setDialogOpen}

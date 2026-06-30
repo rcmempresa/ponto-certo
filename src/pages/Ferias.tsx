@@ -20,6 +20,7 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, differenceInDays, isWeekend, eachDayOfInterval, isSameDay } from 'date-fns';
@@ -79,6 +80,7 @@ interface FeriasRecord {
 
 export default function Ferias() {
   const { user, profile, refreshProfile } = useAuth();
+  const { effectiveUserId, effectiveProfile, isImpersonating } = useEffectiveUser();
   const { toast } = useToast();
   const [ferias, setFerias] = useState<FeriasRecord[]>([]);
   const [loading, setLoading] = useState(true);
@@ -91,19 +93,19 @@ export default function Ferias() {
   const [tipoPeriodoSingleDay, setTipoPeriodoSingleDay] = useState<'dia_inteiro' | 'manha' | 'tarde'>('dia_inteiro');
 
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchFerias();
-      refreshProfile();
+      if (!isImpersonating) refreshProfile();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchFerias = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     const { data, error } = await supabase
       .from('ferias')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .order('created_at', { ascending: false });
 
     if (data) {
@@ -113,6 +115,7 @@ export default function Ferias() {
   };
 
   const handleSelectRange = (start: Date, end: Date) => {
+    if (isImpersonating) return;
     setSelectedRange({ start, end });
     setTipoInicio('manha');
     setTipoFim('tarde');
@@ -127,7 +130,7 @@ export default function Ferias() {
   };
 
   const handleSubmit = async () => {
-    if (!user || !selectedRange) return;
+    if (!user || !selectedRange || isImpersonating) return;
 
     const isSingleDaySubmit = isSameDay(selectedRange.start, selectedRange.end);
     
@@ -254,7 +257,7 @@ export default function Ferias() {
     ? countBusinessDays(selectedRange.start, selectedRange.end, effectiveTipos.inicio, effectiveTipos.fim)
     : 0;
   
-  const availableDays = profile?.saldo_ferias ?? 22;
+  const availableDays = effectiveProfile?.saldo_ferias ?? 22;
   const exceedsSaldo = selectedDays > availableDays;
 
   const formatDays = (days: number): string => {
@@ -452,10 +455,10 @@ export default function Ferias() {
               </div>
               <div>
                 <p className="text-2xl font-semibold">
-                  {profile?.saldo_ferias !== undefined 
-                    ? (Number.isInteger(profile.saldo_ferias) 
-                        ? profile.saldo_ferias 
-                        : profile.saldo_ferias.toFixed(1).replace('.', ',')) 
+                  {effectiveProfile?.saldo_ferias !== undefined && effectiveProfile?.saldo_ferias !== null
+                    ? (Number.isInteger(effectiveProfile.saldo_ferias) 
+                        ? effectiveProfile.saldo_ferias 
+                        : effectiveProfile.saldo_ferias.toFixed(1).replace('.', ',')) 
                     : 22}
                 </p>
                 <p className="text-sm text-muted-foreground">Dias disponíveis</p>
