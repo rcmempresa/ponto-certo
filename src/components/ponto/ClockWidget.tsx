@@ -3,6 +3,7 @@ import { Clock, Play, Square } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useAuth } from '@/contexts/AuthContext';
+import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { format, differenceInSeconds, startOfDay, endOfDay } from 'date-fns';
@@ -19,6 +20,7 @@ interface PontoRecord {
 
 export function ClockWidget() {
   const { user } = useAuth();
+  const { effectiveUserId, isImpersonating } = useEffectiveUser();
   const { toast } = useToast();
   const [currentTime, setCurrentTime] = useState(new Date());
   const [isWorking, setIsWorking] = useState(false);
@@ -48,19 +50,19 @@ export function ClockWidget() {
 
   // Fetch today's records
   useEffect(() => {
-    if (user) {
+    if (effectiveUserId) {
       fetchTodayRecords();
     }
-  }, [user]);
+  }, [effectiveUserId]);
 
   const fetchTodayRecords = async () => {
-    if (!user) return;
+    if (!effectiveUserId) return;
 
     const today = new Date();
     const { data, error } = await supabase
       .from('ponto')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', effectiveUserId)
       .gte('timestamp', startOfDay(today).toISOString())
       .lte('timestamp', endOfDay(today).toISOString())
       .order('timestamp', { ascending: true });
@@ -90,8 +92,8 @@ export function ClockWidget() {
   };
 
   const handlePunch = async () => {
-    if (!user) {
-      console.log('handlePunch: No user found');
+    if (!user || isImpersonating) {
+      console.log('handlePunch: No user found or impersonating');
       return;
     }
 
@@ -171,7 +173,7 @@ export function ClockWidget() {
             <Button
               size="lg"
               onClick={handlePunch}
-              disabled={loading}
+              disabled={loading || isImpersonating}
               className={`relative z-10 h-32 w-32 rounded-full text-lg font-medium transition-all duration-300 ${
                 isWorking 
                   ? 'bg-destructive hover:bg-destructive/90 shadow-glow-destructive' 
