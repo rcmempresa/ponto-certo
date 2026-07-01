@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
-import { CalendarCheck, Loader2, CheckCircle2, Timer, User, Euro } from 'lucide-react';
+import { CalendarCheck, Loader2, CheckCircle2, Timer, User, Euro, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -18,7 +19,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { supabase } from '@/integrations/supabase/client';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { pt } from 'date-fns/locale';
 
 interface Profile {
@@ -52,6 +53,7 @@ export default function AdminFolgasTrabalhadas() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [records, setRecords] = useState<FolgaRecord[]>([]);
   const [selectedUser, setSelectedUser] = useState<string>('all');
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
 
   useEffect(() => {
     fetchAll();
@@ -74,32 +76,36 @@ export default function AdminFolgasTrabalhadas() {
     setLoading(false);
   };
 
+  const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
+  const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
+
+  const inSelectedMonth = (r: FolgaRecord) => {
+    const d = new Date(r.data + 'T12:00:00');
+    return d >= monthStart && d <= monthEnd;
+  };
+
+  const monthRecords = useMemo(() => records.filter(inSelectedMonth), [records, monthStart, monthEnd]);
+
   const filteredRecords = useMemo(() => {
-    if (selectedUser === 'all') return records;
-    return records.filter((r) => r.user_id === selectedUser);
-  }, [records, selectedUser]);
+    if (selectedUser === 'all') return monthRecords;
+    return monthRecords.filter((r) => r.user_id === selectedUser);
+  }, [monthRecords, selectedUser]);
 
   const summaryByUser = useMemo(() => {
-    const now = new Date();
-    const monthStart = startOfMonth(now);
-    const monthEnd = endOfMonth(now);
-
     return profiles.map((p) => {
-      const userRecs = records.filter((r) => r.user_id === p.id);
-      const approved = userRecs.filter((r) => r.status === 'aprovado');
-      const pending = userRecs.filter((r) => r.status === 'pendente');
-      const monthly = approved.filter((r) => {
-        const d = new Date(r.data + 'T12:00:00');
-        return d >= monthStart && d <= monthEnd;
-      });
+      const userAll = records.filter((r) => r.user_id === p.id);
+      const userMonth = monthRecords.filter((r) => r.user_id === p.id);
+      const monthApproved = userMonth.filter((r) => r.status === 'aprovado');
+      const monthPending = userMonth.filter((r) => r.status === 'pendente');
+      const totalApproved = userAll.filter((r) => r.status === 'aprovado').reduce((s, r) => s + Number(r.horas), 0);
       return {
         profile: p,
-        totalApproved: approved.reduce((s, r) => s + Number(r.horas), 0),
-        totalPending: pending.reduce((s, r) => s + Number(r.horas), 0),
-        monthlyApproved: monthly.reduce((s, r) => s + Number(r.horas), 0),
+        totalApproved,
+        monthApproved: monthApproved.reduce((s, r) => s + Number(r.horas), 0),
+        monthPending: monthPending.reduce((s, r) => s + Number(r.horas), 0),
       };
     });
-  }, [profiles, records]);
+  }, [profiles, records, monthRecords]);
 
   const selectedSummary = useMemo(() => {
     if (selectedUser === 'all') return null;
@@ -158,6 +164,21 @@ export default function AdminFolgasTrabalhadas() {
             </SelectContent>
           </Select>
         </div>
+
+        <div className="flex items-center gap-2 rounded-xl border bg-card px-2 py-1">
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth((m) => subMonths(m, 1))}>
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <span className="min-w-[140px] text-center text-sm font-medium capitalize">
+            {format(currentMonth, "MMMM 'de' yyyy", { locale: pt })}
+          </span>
+          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={() => setCurrentMonth((m) => addMonths(m, 1))}>
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+          <Button variant="ghost" size="sm" className="ml-1 text-xs" onClick={() => setCurrentMonth(new Date())}>
+            Hoje
+          </Button>
+        </div>
       </div>
 
       {loading ? (
@@ -167,17 +188,19 @@ export default function AdminFolgasTrabalhadas() {
       ) : selectedUser === 'all' ? (
         <Card className="border-0 shadow-soft">
           <CardHeader>
-            <CardTitle className="text-lg font-medium">Resumo por Colaborador</CardTitle>
+            <CardTitle className="text-lg font-medium">
+              Resumo por Colaborador — {format(currentMonth, "MMMM 'de' yyyy", { locale: pt })}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Colaborador</TableHead>
-                  <TableHead>Total Aprovado</TableHead>
-                  <TableHead>Pendente</TableHead>
-                  <TableHead>Este Mês</TableHead>
-                  <TableHead>Valor (Aprovado)</TableHead>
+                  <TableHead>Aprovado (mês)</TableHead>
+                  <TableHead>Pendente (mês)</TableHead>
+                  <TableHead>Total Acumulado</TableHead>
+                  <TableHead>Valor a Pagar (mês)</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -189,18 +212,10 @@ export default function AdminFolgasTrabalhadas() {
                         {s.profile.nome || s.profile.email}
                       </div>
                     </TableCell>
-                    <TableCell className="font-semibold text-success">
-                      {formatHoras(s.totalApproved)}
-                    </TableCell>
-                    <TableCell className="font-semibold text-warning">
-                      {formatHoras(s.totalPending)}
-                    </TableCell>
-                    <TableCell className="font-semibold">
-                      {formatHoras(s.monthlyApproved)}
-                    </TableCell>
-                    <TableCell className="font-semibold text-success">
-                      {formatEuros(s.totalApproved)}
-                    </TableCell>
+                    <TableCell className="font-semibold text-success">{formatHoras(s.monthApproved)}</TableCell>
+                    <TableCell className="font-semibold text-warning">{formatHoras(s.monthPending)}</TableCell>
+                    <TableCell className="font-semibold">{formatHoras(s.totalApproved)}</TableCell>
+                    <TableCell className="font-semibold text-success">{formatEuros(s.monthApproved)}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -218,8 +233,8 @@ export default function AdminFolgasTrabalhadas() {
                       <CheckCircle2 className="h-6 w-6 text-success" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Total Aprovado</p>
-                      <p className="text-2xl font-bold">{formatHoras(selectedSummary.totalApproved)}</p>
+                      <p className="text-sm text-muted-foreground">Aprovado (mês)</p>
+                      <p className="text-2xl font-bold">{formatHoras(selectedSummary.monthApproved)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -231,8 +246,8 @@ export default function AdminFolgasTrabalhadas() {
                       <Timer className="h-6 w-6 text-warning" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Pendente</p>
-                      <p className="text-2xl font-bold">{formatHoras(selectedSummary.totalPending)}</p>
+                      <p className="text-sm text-muted-foreground">Pendente (mês)</p>
+                      <p className="text-2xl font-bold">{formatHoras(selectedSummary.monthPending)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -244,8 +259,8 @@ export default function AdminFolgasTrabalhadas() {
                       <CalendarCheck className="h-6 w-6 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Este Mês</p>
-                      <p className="text-2xl font-bold">{formatHoras(selectedSummary.monthlyApproved)}</p>
+                      <p className="text-sm text-muted-foreground">Total Acumulado</p>
+                      <p className="text-2xl font-bold">{formatHoras(selectedSummary.totalApproved)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -257,8 +272,8 @@ export default function AdminFolgasTrabalhadas() {
                       <Euro className="h-6 w-6 text-success" />
                     </div>
                     <div>
-                      <p className="text-sm text-muted-foreground">Valor a Pagar</p>
-                      <p className="text-2xl font-bold text-success">{formatEuros(selectedSummary.totalApproved)}</p>
+                      <p className="text-sm text-muted-foreground">Valor a Pagar (mês)</p>
+                      <p className="text-2xl font-bold text-success">{formatEuros(selectedSummary.monthApproved)}</p>
                     </div>
                   </div>
                 </CardContent>
@@ -268,13 +283,15 @@ export default function AdminFolgasTrabalhadas() {
 
           <Card className="border-0 shadow-soft">
             <CardHeader>
-              <CardTitle className="text-lg font-medium">Histórico</CardTitle>
+              <CardTitle className="text-lg font-medium">
+                Histórico — {format(currentMonth, "MMMM 'de' yyyy", { locale: pt })}
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {filteredRecords.length === 0 ? (
                 <div className="text-center py-12">
                   <CalendarCheck className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-                  <p className="text-muted-foreground">Sem registos.</p>
+                  <p className="text-muted-foreground">Sem registos neste mês.</p>
                 </div>
               ) : (
                 <Table>
