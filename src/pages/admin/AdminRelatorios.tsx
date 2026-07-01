@@ -276,13 +276,16 @@ export default function AdminRelatorios() {
 
   // Summary totals
   const summary = useMemo(() => {
+    const totalHorasExtra = monthlyReports.reduce((acc, r) => acc + r.horasExtra, 0);
+    const totalFolgasTrabalhadas = monthlyReports.reduce((acc, r) => acc + r.folgasTrabalhadas, 0);
     return {
       totalDiasTrabalhados: monthlyReports.reduce((acc, r) => acc + r.diasTrabalhados, 0),
       totalHorasTrabalhadas: monthlyReports.reduce((acc, r) => acc + r.horasTrabalhadas, 0),
       totalDiasFerias: monthlyReports.reduce((acc, r) => acc + r.diasFerias, 0),
       totalDiasFalta: monthlyReports.reduce((acc, r) => acc + r.diasFalta, 0),
-      totalHorasExtra: monthlyReports.reduce((acc, r) => acc + r.horasExtra, 0),
-      totalFolgasTrabalhadas: monthlyReports.reduce((acc, r) => acc + r.folgasTrabalhadas, 0),
+      totalHorasExtra,
+      totalFolgasTrabalhadas,
+      totalValorPagar: (totalHorasExtra + totalFolgasTrabalhadas) * RATE_PER_HOUR,
       colaboradores: monthlyReports.length,
     };
   }, [monthlyReports]);
