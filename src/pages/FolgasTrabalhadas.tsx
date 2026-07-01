@@ -52,11 +52,33 @@ export default function FolgasTrabalhadas() {
   const [records, setRecords] = useState<Record[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [stats, setStats] = useState({ totalApproved: 0, totalPending: 0, monthlyApproved: 0 });
+  const [stats, setStats] = useState({ totalApproved: 0, monthApproved: 0, monthPending: 0 });
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
 
   useEffect(() => {
     if (effectiveUserId) fetchRecords();
   }, [effectiveUserId]);
+
+  const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
+  const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
+
+  const visibleRecords = useMemo(() => {
+    return records.filter((r) => {
+      const d = new Date(r.data + 'T12:00:00');
+      return d >= monthStart && d <= monthEnd;
+    });
+  }, [records, monthStart, monthEnd]);
+
+  useEffect(() => {
+    const approved = records.filter((r) => r.status === 'aprovado');
+    const monthApproved = visibleRecords.filter((r) => r.status === 'aprovado');
+    const monthPending = visibleRecords.filter((r) => r.status === 'pendente');
+    setStats({
+      totalApproved: approved.reduce((s, r) => s + Number(r.horas), 0),
+      monthApproved: monthApproved.reduce((s, r) => s + Number(r.horas), 0),
+      monthPending: monthPending.reduce((s, r) => s + Number(r.horas), 0),
+    });
+  }, [records, visibleRecords]);
 
   const fetchRecords = async () => {
     if (!effectiveUserId) return;
@@ -67,23 +89,7 @@ export default function FolgasTrabalhadas() {
       .eq('user_id', effectiveUserId)
       .order('data', { ascending: false });
 
-    if (data) {
-      setRecords(data as Record[]);
-      const now = new Date();
-      const monthStart = startOfMonth(now);
-      const monthEnd = endOfMonth(now);
-      const approved = data.filter((r) => r.status === 'aprovado');
-      const pending = data.filter((r) => r.status === 'pendente');
-      const monthly = approved.filter((r) => {
-        const d = new Date(r.data);
-        return d >= monthStart && d <= monthEnd;
-      });
-      setStats({
-        totalApproved: approved.reduce((s, r) => s + Number(r.horas), 0),
-        totalPending: pending.reduce((s, r) => s + Number(r.horas), 0),
-        monthlyApproved: monthly.reduce((s, r) => s + Number(r.horas), 0),
-      });
-    }
+    if (data) setRecords(data as Record[]);
     setLoading(false);
   };
 
