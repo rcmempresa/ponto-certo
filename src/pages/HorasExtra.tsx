@@ -286,10 +286,10 @@ export default function HorasExtra() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : records.length === 0 ? (
+          ) : monthRecords.length === 0 ? (
             <div className="text-center py-12">
               <Clock className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">Ainda não existem registos de horas extra.</p>
+              <p className="text-muted-foreground">Sem registos de horas extra neste mês.</p>
               {!isImpersonating && (
                 <Button onClick={() => setDialogOpen(true)} className="mt-4 rounded-xl">
                   <Plus className="mr-2 h-4 w-4" />
@@ -312,7 +312,8 @@ export default function HorasExtra() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {records.map((record) => (
+                {monthRecords.map((record) => (
+
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">
                       {format(new Date(record.data + 'T12:00:00'), "d 'de' MMMM", { locale: pt })}
