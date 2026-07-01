@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Clock, Plus, Loader2, Calendar, CheckCircle2, XCircle, Timer, Trash2, Euro } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Clock, Plus, Loader2, Calendar, CheckCircle2, XCircle, Timer, Trash2, Euro, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const RATE_PER_HOUR = 8.16;
 const formatEuros = (minutos: number) =>
