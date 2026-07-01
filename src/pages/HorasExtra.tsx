@@ -20,7 +20,7 @@ import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { OvertimeDialog } from '@/components/horas-extra/OvertimeDialog';
 import { formatOvertimeMinutes } from '@/lib/overtimeCalculator';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { toast } from 'sonner';
 import {
