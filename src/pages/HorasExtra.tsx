@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Clock, Plus, Loader2, Calendar, CheckCircle2, XCircle, Timer, Trash2, Euro } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { Clock, Plus, Loader2, Calendar, CheckCircle2, XCircle, Timer, Trash2, Euro, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const RATE_PER_HOUR = 8.16;
 const formatEuros = (minutos: number) =>
@@ -20,7 +20,7 @@ import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { OvertimeDialog } from '@/components/horas-extra/OvertimeDialog';
 import { formatOvertimeMinutes } from '@/lib/overtimeCalculator';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths, isSameMonth } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { toast } from 'sonner';
 import {
@@ -53,11 +53,32 @@ export default function HorasExtra() {
   const [records, setRecords] = useState<HorasExtraRecord[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [stats, setStats] = useState({
-    totalApproved: 0,
-    totalPending: 0,
-    monthlyApproved: 0,
-  });
+  const [currentMonth, setCurrentMonth] = useState<Date>(startOfMonth(new Date()));
+
+  const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
+  const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
+
+  const monthRecords = useMemo(
+    () =>
+      records.filter((r) => {
+        const d = new Date(r.data + 'T12:00:00');
+        return d >= monthStart && d <= monthEnd;
+      }),
+    [records, monthStart, monthEnd]
+  );
+
+  const stats = useMemo(() => {
+    const totalApproved = records
+      .filter((r) => r.status === 'aprovado')
+      .reduce((sum, r) => sum + r.minutos_extra, 0);
+    const monthApproved = monthRecords
+      .filter((r) => r.status === 'aprovado')
+      .reduce((sum, r) => sum + r.minutos_extra, 0);
+    const monthPending = monthRecords
+      .filter((r) => r.status === 'pendente')
+      .reduce((sum, r) => sum + r.minutos_extra, 0);
+    return { totalApproved, monthApproved, monthPending };
+  }, [records, monthRecords]);
 
   useEffect(() => {
     if (effectiveUserId) {
@@ -69,36 +90,16 @@ export default function HorasExtra() {
     if (!effectiveUserId) return;
     setLoading(true);
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('horas_extra')
       .select('*')
       .eq('user_id', effectiveUserId)
       .order('data', { ascending: false });
 
-    if (data) {
-      setRecords(data);
-      
-      // Calculate stats
-      const now = new Date();
-      const monthStart = startOfMonth(now);
-      const monthEnd = endOfMonth(now);
-      
-      const approved = data.filter(r => r.status === 'aprovado');
-      const pending = data.filter(r => r.status === 'pendente');
-      const monthlyApproved = approved.filter(r => {
-        const date = new Date(r.data);
-        return date >= monthStart && date <= monthEnd;
-      });
-
-      setStats({
-        totalApproved: approved.reduce((sum, r) => sum + r.minutos_extra, 0),
-        totalPending: pending.reduce((sum, r) => sum + r.minutos_extra, 0),
-        monthlyApproved: monthlyApproved.reduce((sum, r) => sum + r.minutos_extra, 0),
-      });
-    }
-
+    if (data) setRecords(data);
     setLoading(false);
   };
+
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('horas_extra').delete().eq('id', id);
@@ -180,6 +181,41 @@ export default function HorasExtra() {
         </div>
       </div>
 
+      {/* Month Navigation */}
+      <Card className="border-0 shadow-soft">
+        <CardContent className="p-4 flex items-center justify-between gap-4">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-xl"
+            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex flex-col items-center">
+            <span className="text-lg font-semibold capitalize">
+              {format(currentMonth, "MMMM 'de' yyyy", { locale: pt })}
+            </span>
+            {!isSameMonth(currentMonth, new Date()) && (
+              <button
+                onClick={() => setCurrentMonth(startOfMonth(new Date()))}
+                className="text-xs text-primary hover:underline"
+              >
+                Voltar ao mês atual
+              </button>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-xl"
+            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-0 shadow-soft">
@@ -189,8 +225,8 @@ export default function HorasExtra() {
                 <CheckCircle2 className="h-6 w-6 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Aprovado</p>
-                <p className="text-2xl font-bold">{formatOvertimeMinutes(stats.totalApproved)}</p>
+                <p className="text-sm text-muted-foreground">Aprovado (mês)</p>
+                <p className="text-2xl font-bold">{formatOvertimeMinutes(stats.monthApproved)}</p>
               </div>
             </div>
           </CardContent>
@@ -203,8 +239,8 @@ export default function HorasExtra() {
                 <Timer className="h-6 w-6 text-warning" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Pendente</p>
-                <p className="text-2xl font-bold">{formatOvertimeMinutes(stats.totalPending)}</p>
+                <p className="text-sm text-muted-foreground">Pendente (mês)</p>
+                <p className="text-2xl font-bold">{formatOvertimeMinutes(stats.monthPending)}</p>
               </div>
             </div>
           </CardContent>
@@ -217,8 +253,8 @@ export default function HorasExtra() {
                 <Calendar className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Este Mês</p>
-                <p className="text-2xl font-bold">{formatOvertimeMinutes(stats.monthlyApproved)}</p>
+                <p className="text-sm text-muted-foreground">Total Acumulado</p>
+                <p className="text-2xl font-bold">{formatOvertimeMinutes(stats.totalApproved)}</p>
               </div>
             </div>
           </CardContent>
@@ -231,13 +267,14 @@ export default function HorasExtra() {
                 <Euro className="h-6 w-6 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Valor a Receber</p>
-                <p className="text-2xl font-bold text-success">{formatEuros(stats.totalApproved)}</p>
+                <p className="text-sm text-muted-foreground">Valor a Receber (mês)</p>
+                <p className="text-2xl font-bold text-success">{formatEuros(stats.monthApproved)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
 
       {/* Records Table */}
       <Card className="border-0 shadow-soft">
@@ -249,10 +286,10 @@ export default function HorasExtra() {
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : records.length === 0 ? (
+          ) : monthRecords.length === 0 ? (
             <div className="text-center py-12">
               <Clock className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">Ainda não existem registos de horas extra.</p>
+              <p className="text-muted-foreground">Sem registos de horas extra neste mês.</p>
               {!isImpersonating && (
                 <Button onClick={() => setDialogOpen(true)} className="mt-4 rounded-xl">
                   <Plus className="mr-2 h-4 w-4" />
@@ -275,7 +312,8 @@ export default function HorasExtra() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {records.map((record) => (
+                {monthRecords.map((record) => (
+
                   <TableRow key={record.id}>
                     <TableCell className="font-medium">
                       {format(new Date(record.data + 'T12:00:00'), "d 'de' MMMM", { locale: pt })}
