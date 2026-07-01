@@ -53,11 +53,32 @@ export default function HorasExtra() {
   const [records, setRecords] = useState<HorasExtraRecord[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [stats, setStats] = useState({
-    totalApproved: 0,
-    totalPending: 0,
-    monthlyApproved: 0,
-  });
+  const [currentMonth, setCurrentMonth] = useState<Date>(startOfMonth(new Date()));
+
+  const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
+  const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
+
+  const monthRecords = useMemo(
+    () =>
+      records.filter((r) => {
+        const d = new Date(r.data + 'T12:00:00');
+        return d >= monthStart && d <= monthEnd;
+      }),
+    [records, monthStart, monthEnd]
+  );
+
+  const stats = useMemo(() => {
+    const totalApproved = records
+      .filter((r) => r.status === 'aprovado')
+      .reduce((sum, r) => sum + r.minutos_extra, 0);
+    const monthApproved = monthRecords
+      .filter((r) => r.status === 'aprovado')
+      .reduce((sum, r) => sum + r.minutos_extra, 0);
+    const monthPending = monthRecords
+      .filter((r) => r.status === 'pendente')
+      .reduce((sum, r) => sum + r.minutos_extra, 0);
+    return { totalApproved, monthApproved, monthPending };
+  }, [records, monthRecords]);
 
   useEffect(() => {
     if (effectiveUserId) {
@@ -69,36 +90,16 @@ export default function HorasExtra() {
     if (!effectiveUserId) return;
     setLoading(true);
 
-    const { data, error } = await supabase
+    const { data } = await supabase
       .from('horas_extra')
       .select('*')
       .eq('user_id', effectiveUserId)
       .order('data', { ascending: false });
 
-    if (data) {
-      setRecords(data);
-      
-      // Calculate stats
-      const now = new Date();
-      const monthStart = startOfMonth(now);
-      const monthEnd = endOfMonth(now);
-      
-      const approved = data.filter(r => r.status === 'aprovado');
-      const pending = data.filter(r => r.status === 'pendente');
-      const monthlyApproved = approved.filter(r => {
-        const date = new Date(r.data);
-        return date >= monthStart && date <= monthEnd;
-      });
-
-      setStats({
-        totalApproved: approved.reduce((sum, r) => sum + r.minutos_extra, 0),
-        totalPending: pending.reduce((sum, r) => sum + r.minutos_extra, 0),
-        monthlyApproved: monthlyApproved.reduce((sum, r) => sum + r.minutos_extra, 0),
-      });
-    }
-
+    if (data) setRecords(data);
     setLoading(false);
   };
+
 
   const handleDelete = async (id: string) => {
     const { error } = await supabase.from('horas_extra').delete().eq('id', id);
