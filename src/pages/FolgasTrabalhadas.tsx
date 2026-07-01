@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { FolgaTrabalhadaDialog } from '@/components/folgas-trabalhadas/FolgaTrabalhadaDialog';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { toast } from 'sonner';
 import {
