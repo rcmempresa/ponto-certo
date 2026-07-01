@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { CalendarCheck, Plus, Loader2, CheckCircle2, XCircle, Timer, Trash2 } from 'lucide-react';
+import { useState, useEffect, useMemo } from 'react';
+import { CalendarCheck, Plus, Loader2, CheckCircle2, XCircle, Timer, Trash2, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,7 +15,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 import { supabase } from '@/integrations/supabase/client';
 import { FolgaTrabalhadaDialog } from '@/components/folgas-trabalhadas/FolgaTrabalhadaDialog';
-import { format, startOfMonth, endOfMonth } from 'date-fns';
+import { format, startOfMonth, endOfMonth, addMonths, subMonths } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { toast } from 'sonner';
 import {
@@ -52,11 +52,33 @@ export default function FolgasTrabalhadas() {
   const [records, setRecords] = useState<Record[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  const [stats, setStats] = useState({ totalApproved: 0, totalPending: 0, monthlyApproved: 0 });
+  const [stats, setStats] = useState({ totalApproved: 0, monthApproved: 0, monthPending: 0 });
+  const [currentMonth, setCurrentMonth] = useState<Date>(new Date());
 
   useEffect(() => {
     if (effectiveUserId) fetchRecords();
   }, [effectiveUserId]);
+
+  const monthStart = useMemo(() => startOfMonth(currentMonth), [currentMonth]);
+  const monthEnd = useMemo(() => endOfMonth(currentMonth), [currentMonth]);
+
+  const visibleRecords = useMemo(() => {
+    return records.filter((r) => {
+      const d = new Date(r.data + 'T12:00:00');
+      return d >= monthStart && d <= monthEnd;
+    });
+  }, [records, monthStart, monthEnd]);
+
+  useEffect(() => {
+    const approved = records.filter((r) => r.status === 'aprovado');
+    const monthApproved = visibleRecords.filter((r) => r.status === 'aprovado');
+    const monthPending = visibleRecords.filter((r) => r.status === 'pendente');
+    setStats({
+      totalApproved: approved.reduce((s, r) => s + Number(r.horas), 0),
+      monthApproved: monthApproved.reduce((s, r) => s + Number(r.horas), 0),
+      monthPending: monthPending.reduce((s, r) => s + Number(r.horas), 0),
+    });
+  }, [records, visibleRecords]);
 
   const fetchRecords = async () => {
     if (!effectiveUserId) return;
@@ -67,23 +89,7 @@ export default function FolgasTrabalhadas() {
       .eq('user_id', effectiveUserId)
       .order('data', { ascending: false });
 
-    if (data) {
-      setRecords(data as Record[]);
-      const now = new Date();
-      const monthStart = startOfMonth(now);
-      const monthEnd = endOfMonth(now);
-      const approved = data.filter((r) => r.status === 'aprovado');
-      const pending = data.filter((r) => r.status === 'pendente');
-      const monthly = approved.filter((r) => {
-        const d = new Date(r.data);
-        return d >= monthStart && d <= monthEnd;
-      });
-      setStats({
-        totalApproved: approved.reduce((s, r) => s + Number(r.horas), 0),
-        totalPending: pending.reduce((s, r) => s + Number(r.horas), 0),
-        monthlyApproved: monthly.reduce((s, r) => s + Number(r.horas), 0),
-      });
-    }
+    if (data) setRecords(data as Record[]);
     setLoading(false);
   };
 
@@ -156,6 +162,23 @@ export default function FolgasTrabalhadas() {
         </div>
       </div>
 
+      <div className="flex items-center justify-between gap-2 rounded-xl border bg-card p-2">
+        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setCurrentMonth((m) => subMonths(m, 1))}>
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        <div className="flex items-center gap-3">
+          <span className="text-sm font-medium capitalize">
+            {format(currentMonth, "MMMM 'de' yyyy", { locale: pt })}
+          </span>
+          <Button variant="ghost" size="sm" className="text-xs" onClick={() => setCurrentMonth(new Date())}>
+            Hoje
+          </Button>
+        </div>
+        <Button variant="ghost" size="icon" className="h-9 w-9" onClick={() => setCurrentMonth((m) => addMonths(m, 1))}>
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      </div>
+
       <div className="grid gap-4 md:grid-cols-3">
         <Card className="border-0 shadow-soft">
           <CardContent className="p-6">
@@ -164,8 +187,8 @@ export default function FolgasTrabalhadas() {
                 <CheckCircle2 className="h-6 w-6 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Aprovado</p>
-                <p className="text-2xl font-bold">{formatHoras(stats.totalApproved)}</p>
+                <p className="text-sm text-muted-foreground">Aprovado (mês)</p>
+                <p className="text-2xl font-bold">{formatHoras(stats.monthApproved)}</p>
               </div>
             </div>
           </CardContent>
@@ -177,8 +200,8 @@ export default function FolgasTrabalhadas() {
                 <Timer className="h-6 w-6 text-warning" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Pendente</p>
-                <p className="text-2xl font-bold">{formatHoras(stats.totalPending)}</p>
+                <p className="text-sm text-muted-foreground">Pendente (mês)</p>
+                <p className="text-2xl font-bold">{formatHoras(stats.monthPending)}</p>
               </div>
             </div>
           </CardContent>
@@ -190,8 +213,8 @@ export default function FolgasTrabalhadas() {
                 <CalendarCheck className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Este Mês</p>
-                <p className="text-2xl font-bold">{formatHoras(stats.monthlyApproved)}</p>
+                <p className="text-sm text-muted-foreground">Total Acumulado</p>
+                <p className="text-2xl font-bold">{formatHoras(stats.totalApproved)}</p>
               </div>
             </div>
           </CardContent>
@@ -200,17 +223,19 @@ export default function FolgasTrabalhadas() {
 
       <Card className="border-0 shadow-soft">
         <CardHeader>
-          <CardTitle className="text-lg font-medium">Histórico</CardTitle>
+          <CardTitle className="text-lg font-medium">
+            Histórico — {format(currentMonth, "MMMM 'de' yyyy", { locale: pt })}
+          </CardTitle>
         </CardHeader>
         <CardContent>
           {loading ? (
             <div className="flex items-center justify-center py-12">
               <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
             </div>
-          ) : records.length === 0 ? (
+          ) : visibleRecords.length === 0 ? (
             <div className="text-center py-12">
               <CalendarCheck className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">Sem registos.</p>
+              <p className="text-muted-foreground">Sem registos neste mês.</p>
             </div>
           ) : (
             <Table>
@@ -226,7 +251,7 @@ export default function FolgasTrabalhadas() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {records.map((r) => (
+                {visibleRecords.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">
                       {format(new Date(r.data + 'T12:00:00'), "d 'de' MMMM", { locale: pt })}
