@@ -330,17 +330,34 @@ export default function AdminRelatorios() {
       reportData = {
         title: 'Relatório Mensal de Horas e Presenças',
         subtitle: monthLabel,
-        headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Folgas/Feriados'],
-        rows: monthlyReports.map(r => [
-          r.nome,
-          r.cargo || '-',
-          r.diasTrabalhados,
-          r.horasTrabalhadas,
-          Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
-          r.diasFalta,
-          r.horasExtra,
-          Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
-        ]),
+        headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Valor HE', 'Folgas/Feriados', 'Valor F/F', 'Total a Pagar'],
+        rows: [
+          ...monthlyReports.map(r => [
+            r.nome,
+            r.cargo || '-',
+            r.diasTrabalhados,
+            r.horasTrabalhadas,
+            Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
+            r.diasFalta,
+            r.horasExtra,
+            formatEuros(r.horasExtra),
+            Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
+            formatEuros(r.folgasTrabalhadas),
+            formatEuros(r.horasExtra + r.folgasTrabalhadas),
+          ]),
+          [
+            'TOTAL', '',
+            summary.totalDiasTrabalhados,
+            summary.totalHorasTrabalhadas,
+            Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ','),
+            summary.totalDiasFalta,
+            summary.totalHorasExtra,
+            formatEuros(summary.totalHorasExtra),
+            Number.isInteger(summary.totalFolgasTrabalhadas) ? `${summary.totalFolgasTrabalhadas}h` : `${summary.totalFolgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
+            formatEuros(summary.totalFolgasTrabalhadas),
+            formatEuros(summary.totalHorasExtra + summary.totalFolgasTrabalhadas),
+          ],
+        ],
       };
     } else if (type === 'ferias') {
       reportData = {
@@ -369,17 +386,34 @@ export default function AdminRelatorios() {
     if (type === 'resumo') {
       reportData = {
         title: 'Relatório Mensal',
-        headers: ['Colaborador', 'Cargo', 'Dias Trabalhados', 'Horas Trabalhadas', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Folgas e Feriados'],
-        rows: monthlyReports.map(r => [
-          r.nome,
-          r.cargo || '-',
-          r.diasTrabalhados,
-          r.horasTrabalhadas,
-          Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
-          r.diasFalta,
-          r.horasExtra,
-          Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
-        ]),
+        headers: ['Colaborador', 'Cargo', 'Dias Trabalhados', 'Horas Trabalhadas', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Valor Horas Extra (€)', 'Folgas e Feriados', 'Valor Folgas/Feriados (€)', 'Total a Pagar (€)'],
+        rows: [
+          ...monthlyReports.map(r => [
+            r.nome,
+            r.cargo || '-',
+            r.diasTrabalhados,
+            r.horasTrabalhadas,
+            Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
+            r.diasFalta,
+            r.horasExtra,
+            formatEuros(r.horasExtra),
+            Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
+            formatEuros(r.folgasTrabalhadas),
+            formatEuros(r.horasExtra + r.folgasTrabalhadas),
+          ]),
+          [
+            'TOTAL', '',
+            summary.totalDiasTrabalhados,
+            summary.totalHorasTrabalhadas,
+            Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ','),
+            summary.totalDiasFalta,
+            summary.totalHorasExtra,
+            formatEuros(summary.totalHorasExtra),
+            Number.isInteger(summary.totalFolgasTrabalhadas) ? `${summary.totalFolgasTrabalhadas}h` : `${summary.totalFolgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
+            formatEuros(summary.totalFolgasTrabalhadas),
+            formatEuros(summary.totalHorasExtra + summary.totalFolgasTrabalhadas),
+          ],
+        ],
       };
     } else if (type === 'ferias') {
       reportData = {
