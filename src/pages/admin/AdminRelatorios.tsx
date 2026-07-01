@@ -10,8 +10,12 @@ import {
   Filter,
   TrendingUp,
   CalendarDays,
-  Timer
+  Timer,
+  Euro
 } from 'lucide-react';
+
+const RATE_PER_HOUR = 8.16;
+const formatEuros = (h: number) => `${(h * RATE_PER_HOUR).toFixed(2).replace('.', ',')} €`;
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -272,13 +276,16 @@ export default function AdminRelatorios() {
 
   // Summary totals
   const summary = useMemo(() => {
+    const totalHorasExtra = monthlyReports.reduce((acc, r) => acc + r.horasExtra, 0);
+    const totalFolgasTrabalhadas = monthlyReports.reduce((acc, r) => acc + r.folgasTrabalhadas, 0);
     return {
       totalDiasTrabalhados: monthlyReports.reduce((acc, r) => acc + r.diasTrabalhados, 0),
       totalHorasTrabalhadas: monthlyReports.reduce((acc, r) => acc + r.horasTrabalhadas, 0),
       totalDiasFerias: monthlyReports.reduce((acc, r) => acc + r.diasFerias, 0),
       totalDiasFalta: monthlyReports.reduce((acc, r) => acc + r.diasFalta, 0),
-      totalHorasExtra: monthlyReports.reduce((acc, r) => acc + r.horasExtra, 0),
-      totalFolgasTrabalhadas: monthlyReports.reduce((acc, r) => acc + r.folgasTrabalhadas, 0),
+      totalHorasExtra,
+      totalFolgasTrabalhadas,
+      totalValorPagar: (totalHorasExtra + totalFolgasTrabalhadas) * RATE_PER_HOUR,
       colaboradores: monthlyReports.length,
     };
   }, [monthlyReports]);
@@ -323,17 +330,34 @@ export default function AdminRelatorios() {
       reportData = {
         title: 'Relatório Mensal de Horas e Presenças',
         subtitle: monthLabel,
-        headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Folgas/Feriados'],
-        rows: monthlyReports.map(r => [
-          r.nome,
-          r.cargo || '-',
-          r.diasTrabalhados,
-          r.horasTrabalhadas,
-          Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
-          r.diasFalta,
-          r.horasExtra,
-          Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
-        ]),
+        headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Valor HE', 'Folgas/Feriados', 'Valor F/F', 'Total a Pagar'],
+        rows: [
+          ...monthlyReports.map(r => [
+            r.nome,
+            r.cargo || '-',
+            r.diasTrabalhados,
+            r.horasTrabalhadas,
+            Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
+            r.diasFalta,
+            r.horasExtra,
+            formatEuros(r.horasExtra),
+            Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
+            formatEuros(r.folgasTrabalhadas),
+            formatEuros(r.horasExtra + r.folgasTrabalhadas),
+          ]),
+          [
+            'TOTAL', '',
+            summary.totalDiasTrabalhados,
+            summary.totalHorasTrabalhadas,
+            Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ','),
+            summary.totalDiasFalta,
+            summary.totalHorasExtra,
+            formatEuros(summary.totalHorasExtra),
+            Number.isInteger(summary.totalFolgasTrabalhadas) ? `${summary.totalFolgasTrabalhadas}h` : `${summary.totalFolgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
+            formatEuros(summary.totalFolgasTrabalhadas),
+            formatEuros(summary.totalHorasExtra + summary.totalFolgasTrabalhadas),
+          ],
+        ],
       };
     } else if (type === 'ferias') {
       reportData = {
@@ -362,17 +386,34 @@ export default function AdminRelatorios() {
     if (type === 'resumo') {
       reportData = {
         title: 'Relatório Mensal',
-        headers: ['Colaborador', 'Cargo', 'Dias Trabalhados', 'Horas Trabalhadas', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Folgas e Feriados'],
-        rows: monthlyReports.map(r => [
-          r.nome,
-          r.cargo || '-',
-          r.diasTrabalhados,
-          r.horasTrabalhadas,
-          Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
-          r.diasFalta,
-          r.horasExtra,
-          Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
-        ]),
+        headers: ['Colaborador', 'Cargo', 'Dias Trabalhados', 'Horas Trabalhadas', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Valor Horas Extra (€)', 'Folgas e Feriados', 'Valor Folgas/Feriados (€)', 'Total a Pagar (€)'],
+        rows: [
+          ...monthlyReports.map(r => [
+            r.nome,
+            r.cargo || '-',
+            r.diasTrabalhados,
+            r.horasTrabalhadas,
+            Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
+            r.diasFalta,
+            r.horasExtra,
+            formatEuros(r.horasExtra),
+            Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
+            formatEuros(r.folgasTrabalhadas),
+            formatEuros(r.horasExtra + r.folgasTrabalhadas),
+          ]),
+          [
+            'TOTAL', '',
+            summary.totalDiasTrabalhados,
+            summary.totalHorasTrabalhadas,
+            Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ','),
+            summary.totalDiasFalta,
+            summary.totalHorasExtra,
+            formatEuros(summary.totalHorasExtra),
+            Number.isInteger(summary.totalFolgasTrabalhadas) ? `${summary.totalFolgasTrabalhadas}h` : `${summary.totalFolgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
+            formatEuros(summary.totalFolgasTrabalhadas),
+            formatEuros(summary.totalHorasExtra + summary.totalFolgasTrabalhadas),
+          ],
+        ],
       };
     } else if (type === 'ferias') {
       reportData = {
@@ -463,7 +504,7 @@ export default function AdminRelatorios() {
       </Card>
 
       {/* Summary Stats */}
-      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-6">
         <Card className="border-success/30 bg-success/5">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
@@ -533,6 +574,20 @@ export default function AdminRelatorios() {
             </div>
           </CardContent>
         </Card>
+
+        <Card className="border-success/30 bg-success/5">
+          <CardContent className="pt-4 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-success/20">
+                <Euro className="h-5 w-5 text-success" />
+              </div>
+              <div>
+                <p className="text-2xl font-bold">{summary.totalValorPagar.toFixed(2).replace('.', ',')} €</p>
+                <p className="text-xs text-muted-foreground">Total a Pagar (HE + F/F)</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* Detailed Reports Tabs */}
@@ -592,7 +647,10 @@ export default function AdminRelatorios() {
                         <TableHead className="text-center">Férias</TableHead>
                         <TableHead className="text-center">Faltas</TableHead>
                         <TableHead className="text-center">Horas Extra</TableHead>
+                        <TableHead className="text-center">Valor HE</TableHead>
                         <TableHead className="text-center">Folgas/Feriados</TableHead>
+                        <TableHead className="text-center">Valor F/F</TableHead>
+                        <TableHead className="text-center">Total a Pagar</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -619,6 +677,9 @@ export default function AdminRelatorios() {
                               <Badge className="bg-warning/20 text-warning">{report.horasExtra}h</Badge>
                             ) : '-'}
                           </TableCell>
+                          <TableCell className="text-center text-sm text-muted-foreground">
+                            {report.horasExtra > 0 ? formatEuros(report.horasExtra) : '-'}
+                          </TableCell>
                           <TableCell className="text-center">
                             {report.folgasTrabalhadas > 0 ? (
                               <Badge className="bg-primary/20 text-primary">
@@ -628,11 +689,38 @@ export default function AdminRelatorios() {
                               </Badge>
                             ) : '-'}
                           </TableCell>
+                          <TableCell className="text-center text-sm text-muted-foreground">
+                            {report.folgasTrabalhadas > 0 ? formatEuros(report.folgasTrabalhadas) : '-'}
+                          </TableCell>
+                          <TableCell className="text-center font-semibold text-success">
+                            {(report.horasExtra + report.folgasTrabalhadas) > 0
+                              ? formatEuros(report.horasExtra + report.folgasTrabalhadas)
+                              : '-'}
+                          </TableCell>
                         </TableRow>
                       ))}
+                      {monthlyReports.length > 0 && (
+                        <TableRow className="bg-muted/40 font-semibold">
+                          <TableCell>TOTAL</TableCell>
+                          <TableCell className="hidden sm:table-cell" />
+                          <TableCell className="text-center">{summary.totalDiasTrabalhados}</TableCell>
+                          <TableCell className="text-center">{summary.totalHorasTrabalhadas}h</TableCell>
+                          <TableCell className="text-center">
+                            {Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ',')}
+                          </TableCell>
+                          <TableCell className="text-center">{summary.totalDiasFalta}</TableCell>
+                          <TableCell className="text-center">{summary.totalHorasExtra}h</TableCell>
+                          <TableCell className="text-center">{formatEuros(summary.totalHorasExtra)}</TableCell>
+                          <TableCell className="text-center">
+                            {Number.isInteger(summary.totalFolgasTrabalhadas) ? `${summary.totalFolgasTrabalhadas}h` : `${summary.totalFolgasTrabalhadas.toFixed(1).replace('.', ',')}h`}
+                          </TableCell>
+                          <TableCell className="text-center">{formatEuros(summary.totalFolgasTrabalhadas)}</TableCell>
+                          <TableCell className="text-center text-success">{formatEuros(summary.totalHorasExtra + summary.totalFolgasTrabalhadas)}</TableCell>
+                        </TableRow>
+                      )}
                       {monthlyReports.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                             Nenhum dado encontrado para o período selecionado
                           </TableCell>
                         </TableRow>
