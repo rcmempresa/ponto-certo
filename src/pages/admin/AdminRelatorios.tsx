@@ -647,7 +647,10 @@ export default function AdminRelatorios() {
                         <TableHead className="text-center">Férias</TableHead>
                         <TableHead className="text-center">Faltas</TableHead>
                         <TableHead className="text-center">Horas Extra</TableHead>
+                        <TableHead className="text-center">Valor HE</TableHead>
                         <TableHead className="text-center">Folgas/Feriados</TableHead>
+                        <TableHead className="text-center">Valor F/F</TableHead>
+                        <TableHead className="text-center">Total a Pagar</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -674,6 +677,9 @@ export default function AdminRelatorios() {
                               <Badge className="bg-warning/20 text-warning">{report.horasExtra}h</Badge>
                             ) : '-'}
                           </TableCell>
+                          <TableCell className="text-center text-sm text-muted-foreground">
+                            {report.horasExtra > 0 ? formatEuros(report.horasExtra) : '-'}
+                          </TableCell>
                           <TableCell className="text-center">
                             {report.folgasTrabalhadas > 0 ? (
                               <Badge className="bg-primary/20 text-primary">
@@ -683,11 +689,38 @@ export default function AdminRelatorios() {
                               </Badge>
                             ) : '-'}
                           </TableCell>
+                          <TableCell className="text-center text-sm text-muted-foreground">
+                            {report.folgasTrabalhadas > 0 ? formatEuros(report.folgasTrabalhadas) : '-'}
+                          </TableCell>
+                          <TableCell className="text-center font-semibold text-success">
+                            {(report.horasExtra + report.folgasTrabalhadas) > 0
+                              ? formatEuros(report.horasExtra + report.folgasTrabalhadas)
+                              : '-'}
+                          </TableCell>
                         </TableRow>
                       ))}
+                      {monthlyReports.length > 0 && (
+                        <TableRow className="bg-muted/40 font-semibold">
+                          <TableCell>TOTAL</TableCell>
+                          <TableCell className="hidden sm:table-cell" />
+                          <TableCell className="text-center">{summary.totalDiasTrabalhados}</TableCell>
+                          <TableCell className="text-center">{summary.totalHorasTrabalhadas}h</TableCell>
+                          <TableCell className="text-center">
+                            {Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ',')}
+                          </TableCell>
+                          <TableCell className="text-center">{summary.totalDiasFalta}</TableCell>
+                          <TableCell className="text-center">{summary.totalHorasExtra}h</TableCell>
+                          <TableCell className="text-center">{formatEuros(summary.totalHorasExtra)}</TableCell>
+                          <TableCell className="text-center">
+                            {Number.isInteger(summary.totalFolgasTrabalhadas) ? `${summary.totalFolgasTrabalhadas}h` : `${summary.totalFolgasTrabalhadas.toFixed(1).replace('.', ',')}h`}
+                          </TableCell>
+                          <TableCell className="text-center">{formatEuros(summary.totalFolgasTrabalhadas)}</TableCell>
+                          <TableCell className="text-center text-success">{formatEuros(summary.totalHorasExtra + summary.totalFolgasTrabalhadas)}</TableCell>
+                        </TableRow>
+                      )}
                       {monthlyReports.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
                             Nenhum dado encontrado para o período selecionado
                           </TableCell>
                         </TableRow>
