@@ -504,7 +504,7 @@ export default function AdminRelatorios() {
       </Card>
 
       {/* Summary Stats */}
-      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-5">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-6">
         <Card className="border-success/30 bg-success/5">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
