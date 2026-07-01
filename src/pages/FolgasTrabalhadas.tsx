@@ -251,7 +251,7 @@ export default function FolgasTrabalhadas() {
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {records.map((r) => (
+                {visibleRecords.map((r) => (
                   <TableRow key={r.id}>
                     <TableCell className="font-medium">
                       {format(new Date(r.data + 'T12:00:00'), "d 'de' MMMM", { locale: pt })}
