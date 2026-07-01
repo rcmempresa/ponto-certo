@@ -10,8 +10,12 @@ import {
   Filter,
   TrendingUp,
   CalendarDays,
-  Timer
+  Timer,
+  Euro
 } from 'lucide-react';
+
+const RATE_PER_HOUR = 8.16;
+const formatEuros = (h: number) => `${(h * RATE_PER_HOUR).toFixed(2).replace('.', ',')} €`;
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
