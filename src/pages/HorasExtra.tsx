@@ -181,6 +181,41 @@ export default function HorasExtra() {
         </div>
       </div>
 
+      {/* Month Navigation */}
+      <Card className="border-0 shadow-soft">
+        <CardContent className="p-4 flex items-center justify-between gap-4">
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-xl"
+            onClick={() => setCurrentMonth((m) => subMonths(m, 1))}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Button>
+          <div className="flex flex-col items-center">
+            <span className="text-lg font-semibold capitalize">
+              {format(currentMonth, "MMMM 'de' yyyy", { locale: pt })}
+            </span>
+            {!isSameMonth(currentMonth, new Date()) && (
+              <button
+                onClick={() => setCurrentMonth(startOfMonth(new Date()))}
+                className="text-xs text-primary hover:underline"
+              >
+                Voltar ao mês atual
+              </button>
+            )}
+          </div>
+          <Button
+            variant="outline"
+            size="icon"
+            className="rounded-xl"
+            onClick={() => setCurrentMonth((m) => addMonths(m, 1))}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+        </CardContent>
+      </Card>
+
       {/* Stats Cards */}
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="border-0 shadow-soft">
@@ -190,8 +225,8 @@ export default function HorasExtra() {
                 <CheckCircle2 className="h-6 w-6 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Total Aprovado</p>
-                <p className="text-2xl font-bold">{formatOvertimeMinutes(stats.totalApproved)}</p>
+                <p className="text-sm text-muted-foreground">Aprovado (mês)</p>
+                <p className="text-2xl font-bold">{formatOvertimeMinutes(stats.monthApproved)}</p>
               </div>
             </div>
           </CardContent>
@@ -204,8 +239,8 @@ export default function HorasExtra() {
                 <Timer className="h-6 w-6 text-warning" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Pendente</p>
-                <p className="text-2xl font-bold">{formatOvertimeMinutes(stats.totalPending)}</p>
+                <p className="text-sm text-muted-foreground">Pendente (mês)</p>
+                <p className="text-2xl font-bold">{formatOvertimeMinutes(stats.monthPending)}</p>
               </div>
             </div>
           </CardContent>
@@ -218,8 +253,8 @@ export default function HorasExtra() {
                 <Calendar className="h-6 w-6 text-primary" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Este Mês</p>
-                <p className="text-2xl font-bold">{formatOvertimeMinutes(stats.monthlyApproved)}</p>
+                <p className="text-sm text-muted-foreground">Total Acumulado</p>
+                <p className="text-2xl font-bold">{formatOvertimeMinutes(stats.totalApproved)}</p>
               </div>
             </div>
           </CardContent>
@@ -232,13 +267,14 @@ export default function HorasExtra() {
                 <Euro className="h-6 w-6 text-success" />
               </div>
               <div>
-                <p className="text-sm text-muted-foreground">Valor a Receber</p>
-                <p className="text-2xl font-bold text-success">{formatEuros(stats.totalApproved)}</p>
+                <p className="text-sm text-muted-foreground">Valor a Receber (mês)</p>
+                <p className="text-2xl font-bold text-success">{formatEuros(stats.monthApproved)}</p>
               </div>
             </div>
           </CardContent>
         </Card>
       </div>
+
 
       {/* Records Table */}
       <Card className="border-0 shadow-soft">
