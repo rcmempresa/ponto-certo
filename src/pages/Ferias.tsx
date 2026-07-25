@@ -190,7 +190,8 @@ export default function Ferias() {
     const requestedDays = countBusinessDays(selectedRange.start, selectedRange.end, finalTipoInicio, finalTipoFim);
     const availableDays = profile?.saldo_ferias ?? 22;
 
-    if (requestedDays > availableDays) {
+    // Skip saldo validation when editing (admin re-approves and reconciles)
+    if (!editingId && requestedDays > availableDays) {
       toast({
         title: 'Saldo insuficiente',
         description: `Está a pedir ${requestedDays} dias úteis, mas só tem ${availableDays} dias disponíveis.`,
@@ -214,13 +215,15 @@ export default function Ferias() {
     const startStr = format(selectedRange.start, 'yyyy-MM-dd');
     const endStr = format(selectedRange.end, 'yyyy-MM-dd');
 
-    const { data: conflictingVacations } = await supabase
+    let conflictQuery = supabase
       .from('ferias')
       .select('*, profiles:user_id(nome)')
       .eq('status', 'aprovado')
       .neq('user_id', user.id)
       .lte('data_inicio', endStr)
       .gte('data_fim', startStr);
+
+    const { data: conflictingVacations } = await conflictQuery;
 
     if (conflictingVacations && conflictingVacations.length > 0) {
       const names = conflictingVacations
@@ -237,25 +240,30 @@ export default function Ferias() {
       return;
     }
 
-    const { error } = await supabase.from('ferias').insert({
-      user_id: user.id,
+    const payload = {
       data_inicio: format(selectedRange.start, 'yyyy-MM-dd'),
       data_fim: format(selectedRange.end, 'yyyy-MM-dd'),
-      status: 'pendente',
+      status: 'pendente' as const,
       tipo_inicio: finalTipoInicio,
       tipo_fim: finalTipoFim,
-    });
+    };
+
+    const { error } = editingId
+      ? await supabase.from('ferias').update(payload).eq('id', editingId)
+      : await supabase.from('ferias').insert({ ...payload, user_id: user.id });
 
     if (error) {
       toast({
         title: 'Erro',
-        description: 'Não foi possível submeter o pedido.',
+        description: editingId ? 'Não foi possível atualizar o pedido.' : 'Não foi possível submeter o pedido.',
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Pedido submetido',
-        description: 'O seu pedido de férias foi enviado para aprovação.',
+        title: editingId ? 'Pedido atualizado' : 'Pedido submetido',
+        description: editingId
+          ? 'O pedido foi alterado e reenviado para aprovação.'
+          : 'O seu pedido de férias foi enviado para aprovação.',
       });
       setDialogOpen(false);
       resetForm();
