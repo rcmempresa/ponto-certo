@@ -118,14 +118,48 @@ export default function Ferias() {
 
   const handleSelectRange = (start: Date, end: Date) => {
     if (isImpersonating) return;
+    setEditingId(null);
     setSelectedRange({ start, end });
     setTipoInicio('manha');
     setTipoFim('tarde');
+    setTipoPeriodoSingleDay('dia_inteiro');
     setDialogOpen(true);
+  };
+
+  const handleEdit = (item: FeriasRecord) => {
+    if (isImpersonating) return;
+    const start = new Date(item.data_inicio + 'T00:00:00');
+    const end = new Date(item.data_fim + 'T00:00:00');
+    setEditingId(item.id);
+    setSelectedRange({ start, end });
+    setTipoInicio(item.tipo_inicio);
+    setTipoFim(item.tipo_fim);
+    if (isSameDay(start, end)) {
+      if (item.tipo_inicio === 'manha' && item.tipo_fim === 'tarde') setTipoPeriodoSingleDay('dia_inteiro');
+      else if (item.tipo_inicio === 'manha') setTipoPeriodoSingleDay('manha');
+      else setTipoPeriodoSingleDay('tarde');
+    } else {
+      setTipoPeriodoSingleDay('dia_inteiro');
+    }
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (item: FeriasRecord) => {
+    if (isImpersonating) return;
+    if (!confirm('Tem a certeza que quer eliminar este pedido de férias?')) return;
+    const { error } = await supabase.from('ferias').delete().eq('id', item.id);
+    if (error) {
+      toast({ title: 'Erro', description: 'Não foi possível eliminar o pedido.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Pedido eliminado', description: 'O pedido de férias foi removido.' });
+      fetchFerias();
+      setCalendarKey((p) => p + 1);
+    }
   };
 
   const resetForm = () => {
     setSelectedRange(null);
+    setEditingId(null);
     setTipoInicio('manha');
     setTipoFim('tarde');
     setTipoPeriodoSingleDay('dia_inteiro');
