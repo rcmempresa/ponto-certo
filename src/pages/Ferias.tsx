@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Calendar, Plus, Sun, Loader2 } from 'lucide-react';
+import { Calendar, Plus, Sun, Loader2, Pencil, Trash2 } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -88,6 +89,7 @@ export default function Ferias() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [calendarKey, setCalendarKey] = useState(0);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [tipoInicio, setTipoInicio] = useState<TipoInicio>('manha');
   const [tipoFim, setTipoFim] = useState<TipoFim>('tarde');
   const [tipoPeriodoSingleDay, setTipoPeriodoSingleDay] = useState<'dia_inteiro' | 'manha' | 'tarde'>('dia_inteiro');
@@ -116,14 +118,48 @@ export default function Ferias() {
 
   const handleSelectRange = (start: Date, end: Date) => {
     if (isImpersonating) return;
+    setEditingId(null);
     setSelectedRange({ start, end });
     setTipoInicio('manha');
     setTipoFim('tarde');
+    setTipoPeriodoSingleDay('dia_inteiro');
     setDialogOpen(true);
+  };
+
+  const handleEdit = (item: FeriasRecord) => {
+    if (isImpersonating) return;
+    const start = new Date(item.data_inicio + 'T00:00:00');
+    const end = new Date(item.data_fim + 'T00:00:00');
+    setEditingId(item.id);
+    setSelectedRange({ start, end });
+    setTipoInicio(item.tipo_inicio);
+    setTipoFim(item.tipo_fim);
+    if (isSameDay(start, end)) {
+      if (item.tipo_inicio === 'manha' && item.tipo_fim === 'tarde') setTipoPeriodoSingleDay('dia_inteiro');
+      else if (item.tipo_inicio === 'manha') setTipoPeriodoSingleDay('manha');
+      else setTipoPeriodoSingleDay('tarde');
+    } else {
+      setTipoPeriodoSingleDay('dia_inteiro');
+    }
+    setDialogOpen(true);
+  };
+
+  const handleDelete = async (item: FeriasRecord) => {
+    if (isImpersonating) return;
+    if (!confirm('Tem a certeza que quer eliminar este pedido de férias?')) return;
+    const { error } = await supabase.from('ferias').delete().eq('id', item.id);
+    if (error) {
+      toast({ title: 'Erro', description: 'Não foi possível eliminar o pedido.', variant: 'destructive' });
+    } else {
+      toast({ title: 'Pedido eliminado', description: 'O pedido de férias foi removido.' });
+      fetchFerias();
+      setCalendarKey((p) => p + 1);
+    }
   };
 
   const resetForm = () => {
     setSelectedRange(null);
+    setEditingId(null);
     setTipoInicio('manha');
     setTipoFim('tarde');
     setTipoPeriodoSingleDay('dia_inteiro');
@@ -154,7 +190,8 @@ export default function Ferias() {
     const requestedDays = countBusinessDays(selectedRange.start, selectedRange.end, finalTipoInicio, finalTipoFim);
     const availableDays = profile?.saldo_ferias ?? 22;
 
-    if (requestedDays > availableDays) {
+    // Skip saldo validation when editing (admin re-approves and reconciles)
+    if (!editingId && requestedDays > availableDays) {
       toast({
         title: 'Saldo insuficiente',
         description: `Está a pedir ${requestedDays} dias úteis, mas só tem ${availableDays} dias disponíveis.`,
@@ -178,13 +215,15 @@ export default function Ferias() {
     const startStr = format(selectedRange.start, 'yyyy-MM-dd');
     const endStr = format(selectedRange.end, 'yyyy-MM-dd');
 
-    const { data: conflictingVacations } = await supabase
+    let conflictQuery = supabase
       .from('ferias')
       .select('*, profiles:user_id(nome)')
       .eq('status', 'aprovado')
       .neq('user_id', user.id)
       .lte('data_inicio', endStr)
       .gte('data_fim', startStr);
+
+    const { data: conflictingVacations } = await conflictQuery;
 
     if (conflictingVacations && conflictingVacations.length > 0) {
       const names = conflictingVacations
@@ -201,25 +240,30 @@ export default function Ferias() {
       return;
     }
 
-    const { error } = await supabase.from('ferias').insert({
-      user_id: user.id,
+    const payload = {
       data_inicio: format(selectedRange.start, 'yyyy-MM-dd'),
       data_fim: format(selectedRange.end, 'yyyy-MM-dd'),
-      status: 'pendente',
+      status: 'pendente' as const,
       tipo_inicio: finalTipoInicio,
       tipo_fim: finalTipoFim,
-    });
+    };
+
+    const { error } = editingId
+      ? await supabase.from('ferias').update(payload).eq('id', editingId)
+      : await supabase.from('ferias').insert({ ...payload, user_id: user.id });
 
     if (error) {
       toast({
         title: 'Erro',
-        description: 'Não foi possível submeter o pedido.',
+        description: editingId ? 'Não foi possível atualizar o pedido.' : 'Não foi possível submeter o pedido.',
         variant: 'destructive',
       });
     } else {
       toast({
-        title: 'Pedido submetido',
-        description: 'O seu pedido de férias foi enviado para aprovação.',
+        title: editingId ? 'Pedido atualizado' : 'Pedido submetido',
+        description: editingId
+          ? 'O pedido foi alterado e reenviado para aprovação.'
+          : 'O seu pedido de férias foi enviado para aprovação.',
       });
       setDialogOpen(false);
       resetForm();
@@ -322,13 +366,49 @@ export default function Ferias() {
       }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirmar Pedido de Férias</DialogTitle>
+            <DialogTitle>{editingId ? 'Alterar Pedido de Férias' : 'Confirmar Pedido de Férias'}</DialogTitle>
             <DialogDescription>
-              Reveja os detalhes do seu pedido antes de submeter.
+              {editingId
+                ? 'Ajuste as datas e o horário. O pedido voltará a estado pendente para nova aprovação.'
+                : 'Reveja os detalhes do seu pedido antes de submeter.'}
             </DialogDescription>
           </DialogHeader>
           {selectedRange && (
             <div className="py-4 space-y-4">
+              {/* Editable dates (edit mode) */}
+              {editingId && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-data-inicio">Data de início</Label>
+                    <Input
+                      id="edit-data-inicio"
+                      type="date"
+                      value={format(selectedRange.start, 'yyyy-MM-dd')}
+                      onChange={(e) => {
+                        const d = new Date(e.target.value + 'T00:00:00');
+                        if (!isNaN(d.getTime())) {
+                          setSelectedRange((r) => r ? { start: d, end: r.end < d ? d : r.end } : r);
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-data-fim">Data de fim</Label>
+                    <Input
+                      id="edit-data-fim"
+                      type="date"
+                      value={format(selectedRange.end, 'yyyy-MM-dd')}
+                      onChange={(e) => {
+                        const d = new Date(e.target.value + 'T00:00:00');
+                        if (!isNaN(d.getTime())) {
+                          setSelectedRange((r) => r ? { start: r.start > d ? d : r.start, end: d } : r);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Period configuration */}
               <div className="grid gap-4">
                 {isSingleDay ? (
@@ -430,15 +510,15 @@ export default function Ferias() {
             </Button>
             <Button 
               onClick={handleSubmit} 
-              disabled={submitting || exceedsSaldo || selectedDays <= 0}
+              disabled={submitting || (!editingId && exceedsSaldo) || selectedDays <= 0}
             >
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  A submeter...
+                  {editingId ? 'A guardar...' : 'A submeter...'}
                 </>
               ) : (
-                'Submeter Pedido'
+                editingId ? 'Guardar Alterações' : 'Submeter Pedido'
               )}
             </Button>
           </DialogFooter>
@@ -518,7 +598,29 @@ export default function Ferias() {
                         {getVacationDescription(item)}
                       </p>
                     </div>
-                    {getStatusBadge(item.status)}
+                    <div className="flex items-center gap-2">
+                      {getStatusBadge(item.status)}
+                      {!isImpersonating && (
+                        <>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleEdit(item)}
+                            title="Editar pedido"
+                          >
+                            <Pencil className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => handleDelete(item)}
+                            title="Eliminar pedido"
+                          >
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                          </Button>
+                        </>
+                      )}
+                    </div>
                   </div>
                 );
               })}
