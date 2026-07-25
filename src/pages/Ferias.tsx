@@ -510,15 +510,15 @@ export default function Ferias() {
             </Button>
             <Button 
               onClick={handleSubmit} 
-              disabled={submitting || exceedsSaldo || selectedDays <= 0}
+              disabled={submitting || (!editingId && exceedsSaldo) || selectedDays <= 0}
             >
               {submitting ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  A submeter...
+                  {editingId ? 'A guardar...' : 'A submeter...'}
                 </>
               ) : (
-                'Submeter Pedido'
+                editingId ? 'Guardar Alterações' : 'Submeter Pedido'
               )}
             </Button>
           </DialogFooter>
