@@ -89,6 +89,7 @@ export default function Ferias() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [calendarKey, setCalendarKey] = useState(0);
   const [selectedRange, setSelectedRange] = useState<{ start: Date; end: Date } | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
   const [tipoInicio, setTipoInicio] = useState<TipoInicio>('manha');
   const [tipoFim, setTipoFim] = useState<TipoFim>('tarde');
   const [tipoPeriodoSingleDay, setTipoPeriodoSingleDay] = useState<'dia_inteiro' | 'manha' | 'tarde'>('dia_inteiro');
