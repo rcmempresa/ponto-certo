@@ -366,13 +366,49 @@ export default function Ferias() {
       }}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Confirmar Pedido de Férias</DialogTitle>
+            <DialogTitle>{editingId ? 'Alterar Pedido de Férias' : 'Confirmar Pedido de Férias'}</DialogTitle>
             <DialogDescription>
-              Reveja os detalhes do seu pedido antes de submeter.
+              {editingId
+                ? 'Ajuste as datas e o horário. O pedido voltará a estado pendente para nova aprovação.'
+                : 'Reveja os detalhes do seu pedido antes de submeter.'}
             </DialogDescription>
           </DialogHeader>
           {selectedRange && (
             <div className="py-4 space-y-4">
+              {/* Editable dates (edit mode) */}
+              {editingId && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-data-inicio">Data de início</Label>
+                    <Input
+                      id="edit-data-inicio"
+                      type="date"
+                      value={format(selectedRange.start, 'yyyy-MM-dd')}
+                      onChange={(e) => {
+                        const d = new Date(e.target.value + 'T00:00:00');
+                        if (!isNaN(d.getTime())) {
+                          setSelectedRange((r) => r ? { start: d, end: r.end < d ? d : r.end } : r);
+                        }
+                      }}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="edit-data-fim">Data de fim</Label>
+                    <Input
+                      id="edit-data-fim"
+                      type="date"
+                      value={format(selectedRange.end, 'yyyy-MM-dd')}
+                      onChange={(e) => {
+                        const d = new Date(e.target.value + 'T00:00:00');
+                        if (!isNaN(d.getTime())) {
+                          setSelectedRange((r) => r ? { start: r.start > d ? d : r.start, end: d } : r);
+                        }
+                      }}
+                    />
+                  </div>
+                </div>
+              )}
+
               {/* Period configuration */}
               <div className="grid gap-4">
                 {isSingleDay ? (
