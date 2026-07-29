@@ -139,8 +139,18 @@ export default function Auth() {
                     {loading ? 'A entrar...' : 'Entrar'}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
+
+                  <button
+                    type="button"
+                    className="w-full text-sm text-muted-foreground hover:text-foreground underline underline-offset-4"
+                    onClick={handleForgotPassword}
+                    disabled={loading}
+                  >
+                    Esqueci-me da palavra-passe
+                  </button>
                 </form>
               </TabsContent>
+
 
               {/* Register Form */}
               <TabsContent value="register" className="mt-0">
