@@ -225,8 +225,8 @@ export default function Ferias() {
         oldApprovedDays = countBusinessDays(
           new Date(oldRecord.data_inicio),
           new Date(oldRecord.data_fim),
-          oldRecord.tipo_inicio || 'manha',
-          oldRecord.tipo_fim || 'tarde'
+          (oldRecord.tipo_inicio || 'manha') as TipoInicio,
+          (oldRecord.tipo_fim || 'tarde') as TipoFim
         );
 
         const { data: profileData } = await supabase
