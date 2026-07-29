@@ -211,6 +211,39 @@ export default function Ferias() {
 
     setSubmitting(true);
 
+    // If editing an already approved request, refund the old days first
+    // so they are not deducted twice when the admin re-approves.
+    let oldApprovedDays = 0;
+    if (editingId) {
+      const { data: oldRecord } = await supabase
+        .from('ferias')
+        .select('*')
+        .eq('id', editingId)
+        .single();
+
+      if (oldRecord && oldRecord.status === 'aprovado') {
+        oldApprovedDays = countBusinessDays(
+          new Date(oldRecord.data_inicio),
+          new Date(oldRecord.data_fim),
+          (oldRecord.tipo_inicio || 'manha') as TipoInicio,
+          (oldRecord.tipo_fim || 'tarde') as TipoFim
+        );
+
+        const { data: profileData } = await supabase
+          .from('profiles')
+          .select('saldo_ferias')
+          .eq('id', user.id)
+          .single();
+
+        if (profileData) {
+          const currentSaldo = profileData.saldo_ferias ?? 22;
+          const refundedSaldo = currentSaldo + oldApprovedDays;
+          await supabase.from('profiles').update({ saldo_ferias: refundedSaldo }).eq('id', user.id);
+          refreshProfile();
+        }
+      }
+    }
+
     // Check for conflicts with approved vacations from other users
     const startStr = format(selectedRange.start, 'yyyy-MM-dd');
     const endStr = format(selectedRange.end, 'yyyy-MM-dd');
