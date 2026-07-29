@@ -43,7 +43,32 @@ export default function Auth() {
     setLoading(false);
   };
 
+  const handleForgotPassword = async () => {
+    if (!loginData.email) {
+      toast({
+        title: 'Introduza o seu email',
+        description: 'Escreva o email da sua conta e clique novamente.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(loginData.email, {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) {
+      toast({ title: 'Erro', description: error.message, variant: 'destructive' });
+      return;
+    }
+    toast({
+      title: 'Email enviado',
+      description: 'Verifique o seu email para definir uma nova palavra-passe.',
+    });
+  };
+
   const handleRegister = async (e: React.FormEvent) => {
+
     e.preventDefault();
     setLoading(true);
 
@@ -139,8 +164,18 @@ export default function Auth() {
                     {loading ? 'A entrar...' : 'Entrar'}
                     <ArrowRight className="ml-2 h-4 w-4" />
                   </Button>
+
+                  <button
+                    type="button"
+                    className="w-full text-sm text-muted-foreground hover:text-foreground underline underline-offset-4"
+                    onClick={handleForgotPassword}
+                    disabled={loading}
+                  >
+                    Esqueci-me da palavra-passe
+                  </button>
                 </form>
               </TabsContent>
+
 
               {/* Register Form */}
               <TabsContent value="register" className="mt-0">
