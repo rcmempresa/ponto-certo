@@ -33,6 +33,7 @@ const adminMenuItems = [
   { title: 'Ponto', url: '/admin/ponto', icon: Clock },
   { title: 'Horas Extra', url: '/admin/horas-extra', icon: Timer },
   { title: 'Folgas e Feriados', url: '/admin/folgas-trabalhadas', icon: CalendarCheck },
+  { title: 'Férias', url: '/admin/ferias', icon: Calendar },
   { title: 'Relatórios', url: '/admin/relatorios', icon: ClipboardList },
   { title: 'Aprovações', url: '/admin/aprovacoes', icon: CheckSquare },
   { title: 'Documentos', url: '/admin/documentos', icon: FolderOpen },
