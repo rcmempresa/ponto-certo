@@ -105,7 +105,6 @@ export function VacationCalendar({ onSelectRange, refreshKey }: VacationCalendar
   const handleDayClick = (day: Date) => {
     const status = getDayStatus(day);
     if (status.isWeekend || status.isHoliday || status.hasVacation) return;
-    if (day < new Date(new Date().setHours(0, 0, 0, 0))) return;
 
     if (!selectionStart || (selectionStart && selectionEnd)) {
       setSelectionStart(day);
@@ -155,7 +154,7 @@ export function VacationCalendar({ onSelectRange, refreshKey }: VacationCalendar
     }
 
     if (isPast) {
-      return 'bg-transparent text-muted-foreground/40 cursor-not-allowed';
+      return 'bg-transparent text-muted-foreground/60 cursor-pointer hover:bg-muted';
     }
 
     if (isInSelection(day)) {

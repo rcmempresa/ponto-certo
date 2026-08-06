@@ -21,6 +21,7 @@ import AdminAprovacoes from "./pages/admin/AdminAprovacoes";
 import AdminDocumentos from "./pages/admin/AdminDocumentos";
 import AdminHorasExtra from "./pages/admin/AdminHorasExtra";
 import AdminFolgasTrabalhadas from "./pages/admin/AdminFolgasTrabalhadas";
+import AdminFerias from "./pages/admin/AdminFerias";
 import AdminRelatorios from "./pages/admin/AdminRelatorios";
 import NotFound from "./pages/NotFound";
 
@@ -106,6 +107,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requireAdmin>
                     <AdminFolgasTrabalhadas />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/ferias"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminFerias />
                   </ProtectedRoute>
                 }
               />
