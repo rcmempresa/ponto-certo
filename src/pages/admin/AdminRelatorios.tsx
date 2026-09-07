@@ -221,7 +221,7 @@ export default function AdminRelatorios() {
           
           const businessDaysInRange: Date[] = [];
           daysInMonth.forEach(day => {
-            if (day >= feriaStart && day <= feriaEnd && !isWeekend(day) && !isHoliday(day)) {
+            if (day >= feriaStart && day <= feriaEnd) {
               businessDaysInRange.push(day);
             }
           });

@@ -46,7 +46,7 @@ interface FeriasRecord {
 const countDays = (r: FeriasRecord): number => {
   const start = parseISO(r.data_inicio);
   const end = parseISO(r.data_fim);
-  const business = eachDayOfInterval({ start, end }).filter((d) => !isWeekend(d) && !isHoliday(d)).length;
+  const business = eachDayOfInterval({ start, end }).length;
   if (business === 0) return 0;
   if (r.data_inicio === r.data_fim) {
     return r.tipo_inicio === 'manha' && r.tipo_fim === 'tarde' ? 1 : 0.5;
