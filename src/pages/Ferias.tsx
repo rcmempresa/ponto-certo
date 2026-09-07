@@ -39,8 +39,9 @@ const countBusinessDays = (
   tipoInicio: TipoInicio, 
   tipoFim: TipoFim
 ): number => {
+  // Count every calendar day in the range (inclusive of both dates)
   const days = eachDayOfInterval({ start, end });
-  const businessDays = days.filter(day => !isWeekend(day) && !isHoliday(day)).length;
+  const businessDays = days.length;
   
   if (businessDays === 0) return 0;
   
