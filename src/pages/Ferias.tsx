@@ -363,7 +363,7 @@ export default function Ferias() {
       start: new Date(item.data_inicio),
       end: new Date(item.data_fim),
     });
-    const businessDays = days.filter(day => !isWeekend(day) && !isHoliday(day)).length;
+    const businessDays = days.length;
     
     let total = businessDays;
     if (item.tipo_inicio === 'tarde') total -= 0.5;
