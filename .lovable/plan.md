@@ -1,52 +1,19 @@
-# Painel Admin — Folgas/Feriados por colaborador + modo "Ver como"
+# Relatórios: escolher vários colaboradores
 
-## 1. Nova página admin: Folgas e Feriados
+Hoje o filtro de colaborador só permite "Todos" ou um único nome. Passa a permitir selecionar vários.
 
-Criar `src/pages/admin/AdminFolgasTrabalhadas.tsx` (estrutura igual à `AdminHorasExtra`):
+## O que muda
 
-- Filtro por colaborador (dropdown com todos os profiles) + navegação por mês.
-- Tabela com todos os registos de `folgas_trabalhadas` do colaborador escolhido (ou todos).
-- 3 cards de resumo por colaborador selecionado:
-  - **Total Aprovado** — soma acumulada de todos os registos aprovados.
-  - **Pendente** — soma de todos os pendentes.
-  - **Este Mês** — soma dos aprovados do mês atual.
-- Quando "Todos" estiver selecionado, mostrar uma tabela-resumo por colaborador com as 3 colunas acima.
-- Ações já existentes (aprovar/rejeitar) mantêm-se via página de Aprovações; aqui é só visualização e consulta.
-
-Rota: `/admin/folgas-trabalhadas` em `src/App.tsx`, protegida por admin.
-Sidebar (`AppSidebar.tsx`): adicionar entrada "Folgas/Feriados" na secção Admin.
-
-## 2. Modo "Ver como colaborador"
-
-Permite ao admin entrar no painel de um utilizador em **modo só-leitura** para confirmar o que ele vê.
-
-- Novo contexto `ImpersonationContext` (`src/contexts/ImpersonationContext.tsx`):
-  - Estado: `{ impersonatedUserId, impersonatedProfile, startImpersonation(userId), stopImpersonation() }`.
-  - Persistido em `sessionStorage` (limpo ao terminar sessão).
-- Hook utilitário `useEffectiveUserId()` que devolve `impersonatedUserId ?? auth.user.id`.
-- Atualizar as páginas de utilizador (`Dashboard`, `HorasExtra`, `FolgasTrabalhadas`, `Ferias`, `Faltas`, `Documentos`) para usarem `useEffectiveUserId()` ao consultar dados próprios.
-- Quando em modo impersonação: esconder/desativar botões de submissão (registar ponto, pedir férias, pedir horas extra, etc.). Banner fixo no topo: "A ver como **Nome do colaborador** · [Sair]".
-- Botão "Ver painel" em `AdminEquipa` (lista de colaboradores) que chama `startImpersonation(id)` e navega para `/`.
-
-## 3. Backend / RLS
-
-Sem migrações novas. Admin já tem políticas SELECT em todas as tabelas relevantes (`folgas_trabalhadas`, `ferias`, `horas_extra`, `ponto`, `faltas`), portanto a impersonação no cliente apenas substitui o `user_id` nas queries — não precisa de privilégios extra.
-
-A escrita continua a usar `auth.uid()` real; como bloqueamos os botões em modo impersonação, não há risco de o admin criar registos em nome do colaborador.
+- O campo "Colaborador" passa a ser uma lista com caixas de seleção (checkboxes) onde pode marcar quantos colaboradores quiser.
+- Opção "Todos os colaboradores" no topo, que marca/desmarca todos de uma vez.
+- O botão mostra um resumo: "Todos os colaboradores", "3 colaboradores selecionados" ou o nome quando só há um.
+- Todas as tabelas, cartões de resumo, totais e as descargas em PDF e Excel passam a usar apenas os colaboradores marcados.
+- Se nada estiver marcado, não são mostrados dados e os botões de descarga ficam inativos.
+- Comportamento inicial: todos selecionados, como hoje.
 
 ## Detalhes técnicos
 
-- Ficheiros novos:
-  - `src/pages/admin/AdminFolgasTrabalhadas.tsx`
-  - `src/contexts/ImpersonationContext.tsx`
-  - `src/components/layout/ImpersonationBanner.tsx`
-- Ficheiros alterados:
-  - `src/App.tsx` (rota + provider + banner)
-  - `src/components/layout/AppSidebar.tsx` (entrada admin)
-  - `src/pages/admin/AdminEquipa.tsx` (botão "Ver painel")
-  - Páginas de utilizador para usar `useEffectiveUserId`
-
-## Fora de âmbito
-
-- Sem valores monetários (€) nesta página, conforme escolha.
-- Sem alterar permissões de escrita no servidor (mantém-se `auth.uid()`).
+- `src/pages/admin/AdminRelatorios.tsx`: substituir o estado `selectedEmployee: string` por `selectedEmployees: string[]`.
+- Trocar o `Select` de colaborador por um `Popover` + `Command`/checkboxes (componentes shadcn já presentes) com pesquisa por nome.
+- Atualizar os filtros nas linhas ~184, ~296 e ~311 para `selectedEmployees.includes(id)`, e as dependências dos `useMemo`.
+- Subtítulo dos ficheiros exportados passa a indicar o número de colaboradores (ou o nome, quando apenas um).
