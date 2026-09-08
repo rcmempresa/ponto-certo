@@ -359,7 +359,7 @@ export default function AdminRelatorios() {
     if (type === 'resumo') {
       reportData = {
         title: 'Relatório Mensal de Horas e Presenças',
-        subtitle: monthLabel,
+        subtitle: exportSubtitle(monthLabel),
         headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Valor HE', 'Folgas/Feriados', 'Valor F/F', 'Total a Pagar'],
         rows: [
           ...monthlyReports.map(r => [
@@ -392,14 +392,14 @@ export default function AdminRelatorios() {
     } else if (type === 'ferias') {
       reportData = {
         title: 'Relatório de Férias',
-        subtitle: monthLabel,
+        subtitle: exportSubtitle(monthLabel),
         headers: ['Colaborador', 'Data Início', 'Data Fim', 'Estado'],
         rows: vacationDetails.map(v => [v.nome, v.inicio, v.fim, v.status === 'aprovado' ? 'Aprovado' : v.status]),
       };
     } else {
       reportData = {
         title: 'Relatório de Faltas',
-        subtitle: monthLabel,
+        subtitle: exportSubtitle(monthLabel),
         headers: ['Colaborador', 'Data', 'Tipo', 'Motivo'],
         rows: absenceDetails.map(a => [a.nome, a.data, a.tipo, a.motivo]),
       };
@@ -675,11 +675,11 @@ export default function AdminRelatorios() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleExportPDF('resumo')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportPDF('resumo')} disabled={selectedEmployees.length === 0}>
                     <Download className="h-4 w-4 mr-2" />
                     PDF
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('resumo')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('resumo')} disabled={selectedEmployees.length === 0}>
                     <FileSpreadsheet className="h-4 w-4 mr-2" />
                     Excel
                   </Button>
@@ -801,11 +801,11 @@ export default function AdminRelatorios() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleExportPDF('ferias')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportPDF('ferias')} disabled={selectedEmployees.length === 0}>
                     <Download className="h-4 w-4 mr-2" />
                     PDF
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('ferias')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('ferias')} disabled={selectedEmployees.length === 0}>
                     <FileSpreadsheet className="h-4 w-4 mr-2" />
                     Excel
                   </Button>
@@ -868,11 +868,11 @@ export default function AdminRelatorios() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleExportPDF('faltas')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportPDF('faltas')} disabled={selectedEmployees.length === 0}>
                     <Download className="h-4 w-4 mr-2" />
                     PDF
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('faltas')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('faltas')} disabled={selectedEmployees.length === 0}>
                     <FileSpreadsheet className="h-4 w-4 mr-2" />
                     Excel
                   </Button>
