@@ -348,6 +348,9 @@ export default function AdminRelatorios() {
   };
 
   // Export handlers
+  const exportSubtitle = (monthLabel: string) =>
+    `${monthLabel} — ${employeeLabel}`;
+
   const handleExportPDF = (type: 'resumo' | 'ferias' | 'faltas') => {
     const monthLabel = monthOptions.find(m => m.value === selectedMonth)?.label || selectedMonth;
     
@@ -512,19 +515,45 @@ export default function AdminRelatorios() {
             </div>
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Colaborador</label>
-              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os colaboradores" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os colaboradores</SelectItem>
-                  {profiles.map(profile => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      {profile.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between font-normal">
+                    <span className="truncate">{employeeLabel}</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Pesquisar colaborador..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum colaborador encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          onSelect={() =>
+                            setSelectedEmployees(allSelected ? [] : profiles.map(p => p.id))
+                          }
+                        >
+                          <Checkbox checked={allSelected} className="mr-2" />
+                          Todos os colaboradores
+                        </CommandItem>
+                        {profiles.map(profile => (
+                          <CommandItem
+                            key={profile.id}
+                            value={profile.nome}
+                            onSelect={() => toggleEmployee(profile.id)}
+                          >
+                            <Checkbox
+                              checked={selectedEmployees.includes(profile.id)}
+                              className="mr-2"
+                            />
+                            {profile.nome}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </CardContent>
