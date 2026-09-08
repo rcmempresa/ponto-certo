@@ -20,6 +20,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ChevronsUpDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
@@ -103,7 +107,9 @@ export default function AdminRelatorios() {
   const [horasExtraRecords, setHorasExtraRecords] = useState<HorasExtraRecord[]>([]);
   const [folgasTrabRecords, setFolgasTrabRecords] = useState<FolgaTrabalhadaRecord[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
-  const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [employeesInitialized, setEmployeesInitialized] = useState(false);
+  const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
 
@@ -164,7 +170,13 @@ export default function AdminRelatorios() {
         .lte('data', format(monthEnd, 'yyyy-MM-dd')),
     ]);
 
-    if (profilesRes.data) setProfiles(profilesRes.data);
+    if (profilesRes.data) {
+      setProfiles(profilesRes.data);
+      if (!employeesInitialized) {
+        setSelectedEmployees(profilesRes.data.map((p) => p.id));
+        setEmployeesInitialized(true);
+      }
+    }
     if (pontoRes.data) setPontoRecords(pontoRes.data as PontoRecord[]);
     if (feriasRes.data) setFeriasRecords(feriasRes.data);
     if (faltasRes.data) setFaltasRecords(faltasRes.data);
@@ -181,7 +193,7 @@ export default function AdminRelatorios() {
     const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
     return profiles
-      .filter(p => selectedEmployee === 'all' || p.id === selectedEmployee)
+      .filter(p => selectedEmployees.includes(p.id))
       .map(profile => {
         // Calculate worked days and hours
         const userPonto = pontoRecords.filter(p => p.user_id === profile.id);
@@ -272,7 +284,7 @@ export default function AdminRelatorios() {
           saldoFerias: profile.saldo_ferias,
         } as EmployeeMonthlyReport;
       });
-  }, [profiles, pontoRecords, feriasRecords, faltasRecords, horasExtraRecords, folgasTrabRecords, selectedMonth, selectedEmployee]);
+  }, [profiles, pontoRecords, feriasRecords, faltasRecords, horasExtraRecords, folgasTrabRecords, selectedMonth, selectedEmployees]);
 
   // Summary totals
   const summary = useMemo(() => {
@@ -293,7 +305,7 @@ export default function AdminRelatorios() {
   // Prepare vacation details
   const vacationDetails = useMemo(() => {
     return feriasRecords
-      .filter(f => selectedEmployee === 'all' || f.user_id === selectedEmployee)
+      .filter(f => selectedEmployees.includes(f.user_id))
       .map(f => {
         const profile = profiles.find(p => p.id === f.user_id);
         return {
@@ -303,12 +315,12 @@ export default function AdminRelatorios() {
           status: f.status,
         };
       });
-  }, [feriasRecords, profiles, selectedEmployee]);
+  }, [feriasRecords, profiles, selectedEmployees]);
 
   // Prepare absence details
   const absenceDetails = useMemo(() => {
     return faltasRecords
-      .filter(f => selectedEmployee === 'all' || f.user_id === selectedEmployee)
+      .filter(f => selectedEmployees.includes(f.user_id))
       .map(f => {
         const profile = profiles.find(p => p.id === f.user_id);
         return {
@@ -318,7 +330,22 @@ export default function AdminRelatorios() {
           motivo: f.motivo,
         };
       });
-  }, [faltasRecords, profiles, selectedEmployee]);
+  }, [faltasRecords, profiles, selectedEmployees]);
+
+  const allSelected = profiles.length > 0 && selectedEmployees.length === profiles.length;
+  const employeeLabel = allSelected
+    ? 'Todos os colaboradores'
+    : selectedEmployees.length === 0
+      ? 'Nenhum colaborador selecionado'
+      : selectedEmployees.length === 1
+        ? profiles.find(p => p.id === selectedEmployees[0])?.nome || '1 colaborador'
+        : `${selectedEmployees.length} colaboradores selecionados`;
+
+  const toggleEmployee = (id: string) => {
+    setSelectedEmployees(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
 
   // Export handlers
   const handleExportPDF = (type: 'resumo' | 'ferias' | 'faltas') => {
