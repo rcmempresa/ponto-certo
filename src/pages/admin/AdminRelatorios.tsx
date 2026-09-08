@@ -20,6 +20,10 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ChevronsUpDown } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { supabase } from '@/integrations/supabase/client';
@@ -103,7 +107,9 @@ export default function AdminRelatorios() {
   const [horasExtraRecords, setHorasExtraRecords] = useState<HorasExtraRecord[]>([]);
   const [folgasTrabRecords, setFolgasTrabRecords] = useState<FolgaTrabalhadaRecord[]>([]);
   const [selectedMonth, setSelectedMonth] = useState(() => format(new Date(), 'yyyy-MM'));
-  const [selectedEmployee, setSelectedEmployee] = useState<string>('all');
+  const [selectedEmployees, setSelectedEmployees] = useState<string[]>([]);
+  const [employeesInitialized, setEmployeesInitialized] = useState(false);
+  const [employeePopoverOpen, setEmployeePopoverOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const isMobile = useIsMobile();
 
@@ -164,7 +170,13 @@ export default function AdminRelatorios() {
         .lte('data', format(monthEnd, 'yyyy-MM-dd')),
     ]);
 
-    if (profilesRes.data) setProfiles(profilesRes.data);
+    if (profilesRes.data) {
+      setProfiles(profilesRes.data);
+      if (!employeesInitialized) {
+        setSelectedEmployees(profilesRes.data.map((p) => p.id));
+        setEmployeesInitialized(true);
+      }
+    }
     if (pontoRes.data) setPontoRecords(pontoRes.data as PontoRecord[]);
     if (feriasRes.data) setFeriasRecords(feriasRes.data);
     if (faltasRes.data) setFaltasRecords(faltasRes.data);
@@ -181,7 +193,7 @@ export default function AdminRelatorios() {
     const daysInMonth = eachDayOfInterval({ start: monthStart, end: monthEnd });
 
     return profiles
-      .filter(p => selectedEmployee === 'all' || p.id === selectedEmployee)
+      .filter(p => selectedEmployees.includes(p.id))
       .map(profile => {
         // Calculate worked days and hours
         const userPonto = pontoRecords.filter(p => p.user_id === profile.id);
@@ -272,7 +284,7 @@ export default function AdminRelatorios() {
           saldoFerias: profile.saldo_ferias,
         } as EmployeeMonthlyReport;
       });
-  }, [profiles, pontoRecords, feriasRecords, faltasRecords, horasExtraRecords, folgasTrabRecords, selectedMonth, selectedEmployee]);
+  }, [profiles, pontoRecords, feriasRecords, faltasRecords, horasExtraRecords, folgasTrabRecords, selectedMonth, selectedEmployees]);
 
   // Summary totals
   const summary = useMemo(() => {
@@ -293,7 +305,7 @@ export default function AdminRelatorios() {
   // Prepare vacation details
   const vacationDetails = useMemo(() => {
     return feriasRecords
-      .filter(f => selectedEmployee === 'all' || f.user_id === selectedEmployee)
+      .filter(f => selectedEmployees.includes(f.user_id))
       .map(f => {
         const profile = profiles.find(p => p.id === f.user_id);
         return {
@@ -303,12 +315,12 @@ export default function AdminRelatorios() {
           status: f.status,
         };
       });
-  }, [feriasRecords, profiles, selectedEmployee]);
+  }, [feriasRecords, profiles, selectedEmployees]);
 
   // Prepare absence details
   const absenceDetails = useMemo(() => {
     return faltasRecords
-      .filter(f => selectedEmployee === 'all' || f.user_id === selectedEmployee)
+      .filter(f => selectedEmployees.includes(f.user_id))
       .map(f => {
         const profile = profiles.find(p => p.id === f.user_id);
         return {
@@ -318,9 +330,27 @@ export default function AdminRelatorios() {
           motivo: f.motivo,
         };
       });
-  }, [faltasRecords, profiles, selectedEmployee]);
+  }, [faltasRecords, profiles, selectedEmployees]);
+
+  const allSelected = profiles.length > 0 && selectedEmployees.length === profiles.length;
+  const employeeLabel = allSelected
+    ? 'Todos os colaboradores'
+    : selectedEmployees.length === 0
+      ? 'Nenhum colaborador selecionado'
+      : selectedEmployees.length === 1
+        ? profiles.find(p => p.id === selectedEmployees[0])?.nome || '1 colaborador'
+        : `${selectedEmployees.length} colaboradores selecionados`;
+
+  const toggleEmployee = (id: string) => {
+    setSelectedEmployees(prev =>
+      prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id]
+    );
+  };
 
   // Export handlers
+  const exportSubtitle = (monthLabel: string) =>
+    `${monthLabel} — ${employeeLabel}`;
+
   const handleExportPDF = (type: 'resumo' | 'ferias' | 'faltas') => {
     const monthLabel = monthOptions.find(m => m.value === selectedMonth)?.label || selectedMonth;
     
@@ -329,7 +359,7 @@ export default function AdminRelatorios() {
     if (type === 'resumo') {
       reportData = {
         title: 'Relatório Mensal de Horas e Presenças',
-        subtitle: monthLabel,
+        subtitle: exportSubtitle(monthLabel),
         headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Valor HE', 'Folgas/Feriados', 'Valor F/F', 'Total a Pagar'],
         rows: [
           ...monthlyReports.map(r => [
@@ -362,14 +392,14 @@ export default function AdminRelatorios() {
     } else if (type === 'ferias') {
       reportData = {
         title: 'Relatório de Férias',
-        subtitle: monthLabel,
+        subtitle: exportSubtitle(monthLabel),
         headers: ['Colaborador', 'Data Início', 'Data Fim', 'Estado'],
         rows: vacationDetails.map(v => [v.nome, v.inicio, v.fim, v.status === 'aprovado' ? 'Aprovado' : v.status]),
       };
     } else {
       reportData = {
         title: 'Relatório de Faltas',
-        subtitle: monthLabel,
+        subtitle: exportSubtitle(monthLabel),
         headers: ['Colaborador', 'Data', 'Tipo', 'Motivo'],
         rows: absenceDetails.map(a => [a.nome, a.data, a.tipo, a.motivo]),
       };
@@ -485,19 +515,45 @@ export default function AdminRelatorios() {
             </div>
             <div className="flex-1">
               <label className="text-sm font-medium mb-2 block">Colaborador</label>
-              <Select value={selectedEmployee} onValueChange={setSelectedEmployee}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos os colaboradores" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="all">Todos os colaboradores</SelectItem>
-                  {profiles.map(profile => (
-                    <SelectItem key={profile.id} value={profile.id}>
-                      {profile.nome}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={employeePopoverOpen} onOpenChange={setEmployeePopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button variant="outline" className="w-full justify-between font-normal">
+                    <span className="truncate">{employeeLabel}</span>
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[--radix-popover-trigger-width] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Pesquisar colaborador..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum colaborador encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        <CommandItem
+                          onSelect={() =>
+                            setSelectedEmployees(allSelected ? [] : profiles.map(p => p.id))
+                          }
+                        >
+                          <Checkbox checked={allSelected} className="mr-2" />
+                          Todos os colaboradores
+                        </CommandItem>
+                        {profiles.map(profile => (
+                          <CommandItem
+                            key={profile.id}
+                            value={profile.nome}
+                            onSelect={() => toggleEmployee(profile.id)}
+                          >
+                            <Checkbox
+                              checked={selectedEmployees.includes(profile.id)}
+                              className="mr-2"
+                            />
+                            {profile.nome}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         </CardContent>
@@ -619,11 +675,11 @@ export default function AdminRelatorios() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleExportPDF('resumo')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportPDF('resumo')} disabled={selectedEmployees.length === 0}>
                     <Download className="h-4 w-4 mr-2" />
                     PDF
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('resumo')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('resumo')} disabled={selectedEmployees.length === 0}>
                     <FileSpreadsheet className="h-4 w-4 mr-2" />
                     Excel
                   </Button>
@@ -745,11 +801,11 @@ export default function AdminRelatorios() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleExportPDF('ferias')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportPDF('ferias')} disabled={selectedEmployees.length === 0}>
                     <Download className="h-4 w-4 mr-2" />
                     PDF
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('ferias')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('ferias')} disabled={selectedEmployees.length === 0}>
                     <FileSpreadsheet className="h-4 w-4 mr-2" />
                     Excel
                   </Button>
@@ -812,11 +868,11 @@ export default function AdminRelatorios() {
                   </CardDescription>
                 </div>
                 <div className="flex gap-2">
-                  <Button variant="outline" size="sm" onClick={() => handleExportPDF('faltas')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportPDF('faltas')} disabled={selectedEmployees.length === 0}>
                     <Download className="h-4 w-4 mr-2" />
                     PDF
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('faltas')}>
+                  <Button variant="outline" size="sm" onClick={() => handleExportExcel('faltas')} disabled={selectedEmployees.length === 0}>
                     <FileSpreadsheet className="h-4 w-4 mr-2" />
                     Excel
                   </Button>
