@@ -135,21 +135,52 @@ export default function AdminDocumentos() {
   });
   const [file, setFile] = useState<File | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
+  const [customCats, setCustomCats] = useState<string[]>([]);
+  const [catDialogOpen, setCatDialogOpen] = useState(false);
+  const [newCatName, setNewCatName] = useState('');
+  const [savingCat, setSavingCat] = useState(false);
+  const allCategorias = useMemo(
+    () => [...CATEGORIAS, ...customCats.filter((c) => !CATEGORIAS.includes(c))],
+    [customCats]
+  );
+
+  const handleCreateCategory = async () => {
+    const nome = newCatName.trim();
+    if (!nome) return;
+    if (allCategorias.some((c) => c.toLowerCase() === nome.toLowerCase())) {
+      toast({ title: 'Categoria já existe', variant: 'destructive' });
+      return;
+    }
+    setSavingCat(true);
+    const { error } = await supabase.from('documento_categorias').insert({ nome });
+    setSavingCat(false);
+    if (error) {
+      toast({ title: 'Erro ao criar categoria', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setCustomCats((prev) => [...prev, nome]);
+    setFormData((f) => ({ ...f, categoria: nome }));
+    setNewCatName('');
+    setCatDialogOpen(false);
+    toast({ title: 'Categoria criada', description: nome });
+  };
 
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
-    const [docsResult, profilesResult, permissionsResult] = await Promise.all([
+    const [docsResult, profilesResult, permissionsResult, catsResult] = await Promise.all([
       supabase.from('documentos').select('*').order('created_at', { ascending: false }),
       supabase.from('profiles').select('id, nome, email'),
       supabase.from('documento_permissoes').select('documento_id, user_id'),
+      supabase.from('documento_categorias').select('nome').order('nome'),
     ]);
 
     if (docsResult.data) setDocumentos(docsResult.data);
     if (profilesResult.data) setProfiles(profilesResult.data);
     if (permissionsResult.data) setPermissions(permissionsResult.data);
+    if (catsResult.data) setCustomCats(catsResult.data.map((c) => c.nome));
     setLoading(false);
   };
 
@@ -179,7 +210,7 @@ export default function AdminDocumentos() {
     }
     // Sort categories by CATEGORIAS order
     const sorted: Record<string, DocumentoRecord[]> = {};
-    for (const cat of CATEGORIAS) {
+    for (const cat of allCategorias) {
       if (grouped[cat]) {
         sorted[cat] = grouped[cat];
       }
@@ -191,7 +222,7 @@ export default function AdminDocumentos() {
       }
     }
     return sorted;
-  }, [filteredDocuments]);
+  }, [filteredDocuments, allCategorias]);
 
   const categoriesWithDocs = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -419,7 +450,7 @@ export default function AdminDocumentos() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {CATEGORIAS.map((cat) => (
+                    {allCategorias.map((cat) => (
                       <SelectItem key={cat} value={cat}>
                         <span className="flex items-center gap-2">
                           <span>{CATEGORIA_ICONS[cat] || '📁'}</span>
@@ -601,7 +632,7 @@ export default function AdminDocumentos() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas as categorias</SelectItem>
-            {CATEGORIAS.map((cat) => (
+            {allCategorias.map((cat) => (
               <SelectItem key={cat} value={cat}>
                 <span className="flex items-center gap-2">
                   <span>{CATEGORIA_ICONS[cat] || '📁'}</span>
@@ -612,7 +643,34 @@ export default function AdminDocumentos() {
             ))}
           </SelectContent>
         </Select>
+        <Button variant="outline" onClick={() => setCatDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nova categoria
+        </Button>
       </div>
+
+      <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nova categoria</DialogTitle>
+            <DialogDescription>Crie uma categoria para organizar os documentos.</DialogDescription>
+          </DialogHeader>
+          <Input
+            value={newCatName}
+            onChange={(e) => setNewCatName(e.target.value)}
+            placeholder="Ex: Contratos"
+            maxLength={80}
+            onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setCatDialogOpen(false)}>Cancelar</Button>
+            <Button onClick={handleCreateCategory} disabled={savingCat || !newCatName.trim()}>
+              {savingCat && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
+              Criar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Documents grouped by Category */}
       {loading ? (
