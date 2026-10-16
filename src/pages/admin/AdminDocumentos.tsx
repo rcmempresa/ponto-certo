@@ -686,8 +686,8 @@ export default function AdminDocumentos() {
       <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Nova categoria</DialogTitle>
-            <DialogDescription>Crie uma categoria para organizar os documentos.</DialogDescription>
+            <DialogTitle>Categorias</DialogTitle>
+            <DialogDescription>Crie ou elimine categorias para organizar os documentos.</DialogDescription>
           </DialogHeader>
           <Input
             value={newCatName}
