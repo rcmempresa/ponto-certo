@@ -144,6 +144,18 @@ export default function AdminDocumentos() {
     [customCats]
   );
 
+  const handleChangeCategory = async (doc: DocumentoRecord, categoria: string) => {
+    if (categoria === doc.categoria) return;
+    const { error } = await supabase.from('documentos').update({ categoria }).eq('id', doc.id);
+    if (error) {
+      toast({ title: 'Erro ao mudar categoria', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setDocumentos((prev) => prev.map((d) => (d.id === doc.id ? { ...d, categoria } : d)));
+    setExpandedCategories((prev) => new Set(prev).add(categoria));
+    toast({ title: 'Categoria alterada', description: `"${doc.titulo}" movido para ${categoria}.` });
+  };
+
   const handleCreateCategory = async () => {
     const nome = newCatName.trim();
     if (!nome) return;
@@ -746,6 +758,21 @@ export default function AdminDocumentos() {
                             </div>
                           </div>
                           <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                            <Select
+                              value={doc.categoria}
+                              onValueChange={(value) => handleChangeCategory(doc, value)}
+                            >
+                              <SelectTrigger className="h-8 w-[130px] sm:w-[160px] text-xs" title="Mudar categoria">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {allCategorias.map((cat) => (
+                                  <SelectItem key={cat} value={cat}>
+                                    {CATEGORIA_ICONS[cat] || '📁'} {cat}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
                             {!doc.visibilidade_geral && (
                               <Button 
                                 variant="outline" 
