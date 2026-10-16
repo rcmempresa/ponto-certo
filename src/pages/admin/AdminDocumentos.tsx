@@ -144,6 +144,28 @@ export default function AdminDocumentos() {
     [customCats]
   );
 
+  const handleDeleteCategory = async (cat: string) => {
+    const count = documentos.filter((d) => d.categoria === cat).length;
+    if (!window.confirm(`Eliminar a categoria "${cat}"?${count ? ` Os ${count} documento(s) passam para "Geral".` : ''}`)) return;
+    if (count) {
+      const { error: moveError } = await supabase.from('documentos').update({ categoria: 'Geral' }).eq('categoria', cat);
+      if (moveError) {
+        toast({ title: 'Erro ao mover documentos', description: moveError.message, variant: 'destructive' });
+        return;
+      }
+    }
+    const { error } = await supabase.from('documento_categorias').delete().eq('nome', cat);
+    if (error) {
+      toast({ title: 'Erro ao eliminar categoria', description: error.message, variant: 'destructive' });
+      return;
+    }
+    setCustomCats((prev) => prev.filter((c) => c !== cat));
+    setDocumentos((prev) => prev.map((d) => (d.categoria === cat ? { ...d, categoria: 'Geral' } : d)));
+    if (filterCategoria === cat) setFilterCategoria('all');
+    if (formData.categoria === cat) setFormData((f) => ({ ...f, categoria: 'Geral' }));
+    toast({ title: 'Categoria eliminada' });
+  };
+
   const handleChangeCategory = async (doc: DocumentoRecord, categoria: string) => {
     if (categoria === doc.categoria) return;
     const { error } = await supabase.from('documentos').update({ categoria }).eq('id', doc.id);
@@ -674,6 +696,29 @@ export default function AdminDocumentos() {
             maxLength={80}
             onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
           />
+          {customCats.filter((c) => !CATEGORIAS.includes(c)).length > 0 && (
+            <div className="space-y-2 pt-2">
+              <Label>Categorias criadas</Label>
+              <div className="max-h-56 overflow-y-auto rounded-md border divide-y">
+                {customCats.filter((c) => !CATEGORIAS.includes(c)).map((cat) => (
+                  <div key={cat} className="flex items-center justify-between px-3 py-2 text-sm">
+                    <span>{cat}</span>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-7 w-7 text-destructive hover:text-destructive"
+                      title="Eliminar categoria"
+                      onClick={() => handleDeleteCategory(cat)}
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground">Os documentos de uma categoria eliminada passam para "Geral".</p>
+            </div>
+          )}
+
           <DialogFooter>
             <Button variant="outline" onClick={() => setCatDialogOpen(false)}>Cancelar</Button>
             <Button onClick={handleCreateCategory} disabled={savingCat || !newCatName.trim()}>
