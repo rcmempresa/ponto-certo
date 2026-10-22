@@ -6,6 +6,7 @@ import { StatsCard } from '@/components/dashboard/StatsCard';
 import { supabase } from '@/integrations/supabase/client';
 import { format, startOfDay, endOfDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { DocumentExpiryPanel } from '@/components/documents/DocumentExpiryPanel';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ActiveWorker {
@@ -185,6 +186,8 @@ export default function AdminDashboard() {
           )}
         </div>
       )}
+
+      <DocumentExpiryPanel />
 
       {/* Stats Grid - Responsive */}
       <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-6">

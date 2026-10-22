@@ -37,6 +37,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          setLoading(true);
           // Fetch profile and role
           setTimeout(async () => {
             await fetchUserData(session.user.id);
@@ -44,9 +45,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         } else {
           setProfile(null);
           setIsAdmin(false);
+          setLoading(false);
         }
-        
-        setLoading(false);
       }
     );
 
