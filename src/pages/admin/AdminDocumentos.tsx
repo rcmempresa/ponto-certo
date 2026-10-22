@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { Fragment, useState, useEffect, useMemo } from 'react';
 import { Upload, FileText, Trash2, Loader2, Plus, FolderOpen, Users, Eye, EyeOff, Settings2, ChevronDown, ChevronRight, Search, Filter } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -215,6 +215,7 @@ export default function AdminDocumentos() {
     }
     setCustomCats((prev) => [...prev, nome]);
     setFormData((f) => ({ ...f, categoria: nome }));
+    setSubcategory(null);
     setNewCatName('');
     setCatDialogOpen(false);
     toast({ title: 'Categoria criada', description: nome });
@@ -806,9 +807,15 @@ export default function AdminDocumentos() {
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="border-t">
-                    {docs.map((doc) => {
+                    {docs.map((doc, index) => {
                       const uploaderName = getUploaderName(doc.uploaded_by);
                       return (
+                        <Fragment key={doc.id}>
+                        {(index === 0 || docs[index - 1].subcategoria_id !== doc.subcategoria_id) && (
+                          <h3 className="border-b bg-muted/40 px-4 py-2 text-sm font-medium break-words">
+                            {subcategories.find(s => s.id === doc.subcategoria_id)?.nome || 'Sem subcategoria'}
+                          </h3>
+                        )}
                         <div
                           key={doc.id}
                           className="flex min-w-0 flex-col gap-3 p-4 hover:bg-muted/20 border-b last:border-b-0 transition-colors"
@@ -873,6 +880,8 @@ export default function AdminDocumentos() {
                                 variant="outline" 
                                 size="sm"
                                 onClick={() => openPermissionsDialog(doc)}
+                              aria-label={`Permissões de ${doc.titulo}`}
+                              title="Permissões"
                               >
                                 <Users className="mr-1 h-4 w-4" />
                                 <span className="hidden sm:inline">Permissões</span>
@@ -900,6 +909,8 @@ export default function AdminDocumentos() {
                                 <Button
                                   variant="outline"
                                   size="icon"
+                                  aria-label={`Eliminar documento ${doc.titulo}`}
+                                  title="Eliminar documento"
                                   className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                                 >
                                   <Trash2 className="h-4 w-4" />
@@ -929,6 +940,7 @@ export default function AdminDocumentos() {
                             </AlertDialog>
                           </div>
                         </div>
+                        </Fragment>
                       );
                     })}
                   </div>
