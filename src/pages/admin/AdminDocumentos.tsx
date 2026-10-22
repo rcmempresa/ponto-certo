@@ -892,6 +892,7 @@ export default function AdminDocumentos() {
                               size="sm"
                               onClick={() => toggleVisibility(doc)}
                               title={doc.visibilidade_geral ? 'Tornar restrito' : 'Tornar público'}
+                              aria-label={doc.visibilidade_geral ? `Tornar restrito: ${doc.titulo}` : `Tornar público: ${doc.titulo}`}
                             >
                               {doc.visibilidade_geral ? (
                                 <EyeOff className="h-4 w-4" />
