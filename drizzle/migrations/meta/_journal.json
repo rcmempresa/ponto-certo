@@ -8,6 +8,13 @@
       "when": 1791838861892,
       "tag": "0000_create_documento_categorias",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792682656140,
+      "tag": "0001_document_subcategories_and_expiry",
+      "breakpoints": true
     }
   ]
 }

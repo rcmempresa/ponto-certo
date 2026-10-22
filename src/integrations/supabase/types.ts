@@ -61,14 +61,37 @@ export type Database = {
           },
         ]
       }
+      documento_subcategorias: {
+        Row: {
+          categoria: string
+          created_at: string
+          id: string
+          nome: string
+        }
+        Insert: {
+          categoria: string
+          created_at?: string
+          id?: string
+          nome: string
+        }
+        Update: {
+          categoria?: string
+          created_at?: string
+          id?: string
+          nome?: string
+        }
+        Relationships: []
+      }
       documentos: {
         Row: {
           categoria: string
           created_at: string
           ficheiro_url: string
           id: string
+          subcategoria_id: string | null
           titulo: string
           uploaded_by: string | null
+          validade: string | null
           visibilidade_geral: boolean
         }
         Insert: {
@@ -76,8 +99,10 @@ export type Database = {
           created_at?: string
           ficheiro_url: string
           id?: string
+          subcategoria_id?: string | null
           titulo: string
           uploaded_by?: string | null
+          validade?: string | null
           visibilidade_geral?: boolean
         }
         Update: {
@@ -85,11 +110,21 @@ export type Database = {
           created_at?: string
           ficheiro_url?: string
           id?: string
+          subcategoria_id?: string | null
           titulo?: string
           uploaded_by?: string | null
+          validade?: string | null
           visibilidade_geral?: boolean
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "documentos_subcategoria_id_fkey"
+            columns: ["subcategoria_id"]
+            isOneToOne: false
+            referencedRelation: "documento_subcategorias"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       faltas: {
         Row: {
