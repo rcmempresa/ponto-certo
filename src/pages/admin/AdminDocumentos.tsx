@@ -811,7 +811,7 @@ export default function AdminDocumentos() {
                       const uploaderName = getUploaderName(doc.uploaded_by);
                       return (
                         <Fragment key={doc.id}>
-                        {(index === 0 || docs[index - 1].subcategoria_id !== doc.subcategoria_id) && (
+                        {subcategories.some(s => s.categoria === categoria) && (index === 0 || docs[index - 1].subcategoria_id !== doc.subcategoria_id) && (
                           <h3 className="border-b bg-muted/40 px-4 py-2 text-sm font-medium break-words">
                             {subcategories.find(s => s.id === doc.subcategoria_id)?.nome || 'Sem subcategoria'}
                           </h3>
