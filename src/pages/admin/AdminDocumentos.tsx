@@ -45,6 +45,10 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
+import { documentCategoryChange, documentUploadValidity } from '@/lib/documentRules';
+import { DocumentExpiryBadge } from '@/components/documents/DocumentExpiryBadge';
+import { SubcategorySelect, type DocumentSubcategory } from '@/components/documents/SubcategorySelect';
+import { SubcategoryManager } from '@/components/documents/SubcategoryManager';
 
 interface DocumentoRecord {
   id: string;
@@ -54,6 +58,8 @@ interface DocumentoRecord {
   visibilidade_geral: boolean;
   created_at: string;
   uploaded_by: string | null;
+  subcategoria_id: string | null;
+  validade: string | null;
 }
 
 interface Profile {
@@ -133,6 +139,11 @@ export default function AdminDocumentos() {
     categoria: 'Geral',
     visibilidade_geral: true,
   });
+  const [subcategories, setSubcategories] = useState<DocumentSubcategory[]>([]);
+  const [subcategory, setSubcategory] = useState<string | null>(null);
+  const [hasExpiry, setHasExpiry] = useState(false);
+  const [expiryDate, setExpiryDate] = useState('');
+  const [filterSubcategory, setFilterSubcategory] = useState('all');
   const [file, setFile] = useState<File | null>(null);
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [customCats, setCustomCats] = useState<string[]>([]);
@@ -148,34 +159,44 @@ export default function AdminDocumentos() {
     const count = documentos.filter((d) => d.categoria === cat).length;
     if (!window.confirm(`Eliminar a categoria "${cat}"?${count ? ` Os ${count} documento(s) passam para "Geral".` : ''}`)) return;
     if (count) {
-      const { error: moveError } = await supabase.from('documentos').update({ categoria: 'Geral' }).eq('categoria', cat);
+      const { error: moveError } = await supabase.from('documentos').update(documentCategoryChange('Geral')).eq('categoria', cat);
       if (moveError) {
         toast({ title: 'Erro ao mover documentos', description: moveError.message, variant: 'destructive' });
         return;
       }
     }
+    const { error: subError } = await supabase.from('documento_subcategorias').delete().eq('categoria', cat);
+    if (subError) { toast({ title: 'Erro ao eliminar subcategorias', variant: 'destructive' }); return; }
     const { error } = await supabase.from('documento_categorias').delete().eq('nome', cat);
     if (error) {
       toast({ title: 'Erro ao eliminar categoria', description: error.message, variant: 'destructive' });
       return;
     }
     setCustomCats((prev) => prev.filter((c) => c !== cat));
-    setDocumentos((prev) => prev.map((d) => (d.categoria === cat ? { ...d, categoria: 'Geral' } : d)));
+    setDocumentos((prev) => prev.map((d) => (d.categoria === cat ? { ...d, ...documentCategoryChange('Geral') } : d)));
     if (filterCategoria === cat) setFilterCategoria('all');
     if (formData.categoria === cat) setFormData((f) => ({ ...f, categoria: 'Geral' }));
+    void fetchData();
     toast({ title: 'Categoria eliminada' });
   };
 
   const handleChangeCategory = async (doc: DocumentoRecord, categoria: string) => {
     if (categoria === doc.categoria) return;
-    const { error } = await supabase.from('documentos').update({ categoria }).eq('id', doc.id);
+    const { error } = await supabase.from('documentos').update(documentCategoryChange(categoria)).eq('id', doc.id);
     if (error) {
       toast({ title: 'Erro ao mudar categoria', description: error.message, variant: 'destructive' });
       return;
     }
-    setDocumentos((prev) => prev.map((d) => (d.id === doc.id ? { ...d, categoria } : d)));
+    setDocumentos((prev) => prev.map((d) => (d.id === doc.id ? { ...d, ...documentCategoryChange(categoria) } : d)));
     setExpandedCategories((prev) => new Set(prev).add(categoria));
     toast({ title: 'Categoria alterada', description: `"${doc.titulo}" movido para ${categoria}.` });
+  };
+
+  const handleChangeSubcategory = async (doc: DocumentoRecord, id: string | null) => {
+    const { error } = await supabase.from('documentos').update({ subcategoria_id: id }).eq('id', doc.id);
+    if (error) { toast({ title: 'Erro ao mudar subcategoria', variant: 'destructive' }); return; }
+    setDocumentos(prev => prev.map(d => d.id === doc.id ? { ...d, subcategoria_id: id } : d));
+    toast({ title: 'Subcategoria alterada' });
   };
 
   const handleCreateCategory = async () => {
@@ -204,13 +225,16 @@ export default function AdminDocumentos() {
   }, []);
 
   const fetchData = async () => {
-    const [docsResult, profilesResult, permissionsResult, catsResult] = await Promise.all([
+    const [docsResult, profilesResult, permissionsResult, catsResult, subcatsResult] = await Promise.all([
       supabase.from('documentos').select('*').order('created_at', { ascending: false }),
       supabase.from('profiles').select('id, nome, email'),
       supabase.from('documento_permissoes').select('documento_id, user_id'),
       supabase.from('documento_categorias').select('nome').order('nome'),
+      supabase.from('documento_subcategorias').select('id,categoria,nome').order('nome'),
     ]);
 
+    if (subcatsResult.data) setSubcategories(subcatsResult.data);
+    if (docsResult.error || subcatsResult.error) toast({ title: 'Erro ao consultar documentos', variant: 'destructive' });
     if (docsResult.data) setDocumentos(docsResult.data);
     if (profilesResult.data) setProfiles(profilesResult.data);
     if (permissionsResult.data) setPermissions(permissionsResult.data);
@@ -230,9 +254,9 @@ export default function AdminDocumentos() {
         doc.titulo.toLowerCase().includes(searchQuery.toLowerCase()) ||
         doc.categoria.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesCategory = filterCategoria === 'all' || doc.categoria === filterCategoria;
-      return matchesSearch && matchesCategory;
+      return matchesSearch && matchesCategory && (filterSubcategory === 'all' || doc.subcategoria_id === filterSubcategory);
     });
-  }, [documentos, searchQuery, filterCategoria]);
+  }, [documentos, searchQuery, filterCategoria, filterSubcategory]);
 
   const documentsByCategory = useMemo(() => {
     const grouped: Record<string, DocumentoRecord[]> = {};
@@ -241,6 +265,7 @@ export default function AdminDocumentos() {
         grouped[doc.categoria] = [];
       }
       grouped[doc.categoria].push(doc);
+      grouped[doc.categoria].sort((a, b) => (subcategories.find(s => s.id === a.subcategoria_id)?.nome || '').localeCompare(subcategories.find(s => s.id === b.subcategoria_id)?.nome || ''));
     }
     // Sort categories by CATEGORIAS order
     const sorted: Record<string, DocumentoRecord[]> = {};
@@ -256,7 +281,7 @@ export default function AdminDocumentos() {
       }
     }
     return sorted;
-  }, [filteredDocuments, allCategorias]);
+  }, [filteredDocuments, allCategorias, subcategories]);
 
   const categoriesWithDocs = useMemo(() => {
     const counts: Record<string, number> = {};
@@ -278,6 +303,8 @@ export default function AdminDocumentos() {
   const handleUpload = async () => {
     if (!user || !formData.titulo || !file) return;
 
+    let validade: string | null;
+    try { validade = documentUploadValidity(hasExpiry, expiryDate); } catch (error) { toast({ title: 'Data de validade em falta', description: error instanceof Error ? error.message : '', variant: 'destructive' }); return; }
     setSubmitting(true);
 
     const sanitizeFileName = (name: string) => {
@@ -317,9 +344,12 @@ export default function AdminDocumentos() {
       ficheiro_url: urlData.publicUrl,
       visibilidade_geral: formData.visibilidade_geral,
       uploaded_by: user.id,
+      subcategoria_id: subcategory,
+      validade,
     }).select().single();
 
     if (error) {
+      await supabase.storage.from('company_docs').remove([filePath]);
       toast({
         title: 'Erro',
         description: 'Não foi possível criar o documento.',
@@ -341,6 +371,9 @@ export default function AdminDocumentos() {
       setDialogOpen(false);
       setFormData({ titulo: '', categoria: 'Geral', visibilidade_geral: true });
       setFile(null);
+      setSubcategory(null);
+      setHasExpiry(false);
+      setExpiryDate('');
       setSelectedUsers([]);
       fetchData();
     }
@@ -444,7 +477,7 @@ export default function AdminDocumentos() {
   return (
     <div className="space-y-6 animate-fade-in">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Gestão Documental</h1>
           <p className="text-muted-foreground">Carregar e gerir documentos da empresa</p>
@@ -456,7 +489,7 @@ export default function AdminDocumentos() {
               Carregar Documento
             </Button>
           </DialogTrigger>
-          <DialogContent className="max-w-lg">
+          <DialogContent className="w-[calc(100%-2rem)] max-w-lg max-h-[90dvh] overflow-y-auto rounded-lg p-4 sm:p-6">
             <DialogHeader>
               <DialogTitle>Novo Documento</DialogTitle>
               <DialogDescription>
@@ -478,12 +511,12 @@ export default function AdminDocumentos() {
                 <Label htmlFor="categoria">Categoria</Label>
                 <Select
                   value={formData.categoria}
-                  onValueChange={(value) => setFormData({ ...formData, categoria: value })}
+                  onValueChange={(value) => { setFormData({ ...formData, categoria: value }); setSubcategory(null); }}
                 >
                   <SelectTrigger>
                     <SelectValue />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-w-[calc(100vw-2rem)]">
                     {allCategorias.map((cat) => (
                       <SelectItem key={cat} value={cat}>
                         <span className="flex items-center gap-2">
@@ -496,6 +529,15 @@ export default function AdminDocumentos() {
                 </Select>
               </div>
 
+              <div className="space-y-2">
+                <Label>Subcategoria</Label>
+                <SubcategorySelect categories={subcategories} categoria={formData.categoria} value={subcategory} onChange={setSubcategory} />
+              </div>
+              <div className="flex items-center justify-between gap-3 border-b py-3">
+                <Label htmlFor="has-expiry">O documento tem validade?</Label>
+                <Switch id="has-expiry" checked={hasExpiry} onCheckedChange={setHasExpiry} />
+              </div>
+              {hasExpiry && <div className="space-y-2"><Label htmlFor="validade">Data de validade</Label><Input id="validade" type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} required /></div>}
               <div className="space-y-2">
                 <Label htmlFor="file">Ficheiro</Label>
                 <Input
@@ -539,7 +581,7 @@ export default function AdminDocumentos() {
                         />
                         <label
                           htmlFor={`user-${profile.id}`}
-                          className="flex-1 text-sm cursor-pointer"
+                          className="min-w-0 flex-1 break-words text-sm cursor-pointer"
                         >
                           <span className="font-medium">{profile.nome || 'Sem nome'}</span>
                           <span className="text-muted-foreground ml-2 text-xs">{profile.email}</span>
@@ -553,11 +595,11 @@ export default function AdminDocumentos() {
                 </div>
               )}
             </div>
-            <DialogFooter>
+            <DialogFooter className="gap-2">
               <Button variant="outline" onClick={() => setDialogOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleUpload} disabled={!formData.titulo || !file || submitting}>
+              <Button onClick={handleUpload} disabled={!formData.titulo.trim() || !file || submitting || (hasExpiry && !expiryDate)}>
                 {submitting ? (
                   <>
                     <Loader2 className="mr-2 h-4 w-4 animate-spin" />
@@ -574,7 +616,7 @@ export default function AdminDocumentos() {
 
       {/* Permissions Dialog */}
       <Dialog open={permissionsDialogOpen} onOpenChange={setPermissionsDialogOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="w-[calc(100%-2rem)] max-w-md max-h-[90dvh] overflow-y-auto rounded-lg p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Gerir Permissões</DialogTitle>
             <DialogDescription>
@@ -594,7 +636,7 @@ export default function AdminDocumentos() {
                 />
                 <label
                   htmlFor={`perm-${profile.id}`}
-                  className="flex-1 text-sm cursor-pointer"
+                  className="min-w-0 flex-1 break-words text-sm cursor-pointer"
                 >
                   <span className="font-medium">{profile.nome || 'Sem nome'}</span>
                   <span className="text-muted-foreground ml-2 text-xs">{profile.email}</span>
@@ -605,7 +647,7 @@ export default function AdminDocumentos() {
           <p className="text-xs text-muted-foreground">
             {selectedUsers.length} colaborador(es) selecionado(s)
           </p>
-          <DialogFooter>
+          <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setPermissionsDialogOpen(false)}>
               Cancelar
             </Button>
@@ -649,7 +691,7 @@ export default function AdminDocumentos() {
       </div>
 
       {/* Search & Filter */}
-      <div className="flex flex-col sm:flex-row gap-3">
+      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,1fr)_240px_auto]">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -659,12 +701,12 @@ export default function AdminDocumentos() {
             className="pl-10"
           />
         </div>
-        <Select value={filterCategoria} onValueChange={setFilterCategoria}>
-          <SelectTrigger className="w-full sm:w-[240px]">
+        <Select value={filterCategoria} onValueChange={value => { setFilterCategoria(value); setFilterSubcategory('all'); }}>
+          <SelectTrigger className="min-w-0 w-full">
             <Filter className="mr-2 h-4 w-4" />
             <SelectValue placeholder="Filtrar categoria" />
           </SelectTrigger>
-          <SelectContent>
+          <SelectContent className="max-w-[calc(100vw-2rem)]">
             <SelectItem value="all">Todas as categorias</SelectItem>
             {allCategorias.map((cat) => (
               <SelectItem key={cat} value={cat}>
@@ -683,8 +725,10 @@ export default function AdminDocumentos() {
         </Button>
       </div>
 
+      {filterCategoria !== 'all' && <Select value={filterSubcategory} onValueChange={setFilterSubcategory}><SelectTrigger aria-label="Filtrer subcategoria" className="w-full min-w-0 sm:max-w-xs"><SelectValue /></SelectTrigger><SelectContent className="max-w-[calc(100vw-2rem)]"><SelectItem value="all">Todas as subcategorias</SelectItem>{subcategories.filter(s => s.categoria === filterCategoria).map(s => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}</SelectContent></Select>}
+
       <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
-        <DialogContent>
+        <DialogContent className="w-[calc(100%-2rem)] max-h-[90dvh] overflow-y-auto rounded-lg p-4 sm:p-6">
           <DialogHeader>
             <DialogTitle>Categorias</DialogTitle>
             <DialogDescription>Crie ou elimine categorias para organizar os documentos.</DialogDescription>
@@ -702,7 +746,7 @@ export default function AdminDocumentos() {
               <div className="max-h-56 overflow-y-auto rounded-md border divide-y">
                 {customCats.filter((c) => !CATEGORIAS.includes(c)).map((cat) => (
                   <div key={cat} className="flex items-center justify-between px-3 py-2 text-sm">
-                    <span>{cat}</span>
+                    <span className="min-w-0 break-words">{cat}</span>
                     <Button
                       variant="ghost"
                       size="icon"
@@ -719,8 +763,9 @@ export default function AdminDocumentos() {
             </div>
           )}
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setCatDialogOpen(false)}>Cancelar</Button>
+          <SubcategoryManager parents={allCategorias} subcategories={subcategories} onChange={() => { void fetchData(); }} />
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCatDialogOpen(false)}>Fechar</Button>
             <Button onClick={handleCreateCategory} disabled={savingCat || !newCatName.trim()}>
               {savingCat && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               Criar
@@ -744,11 +789,11 @@ export default function AdminDocumentos() {
             >
               <Card className="border-0 shadow-soft overflow-hidden">
                 <CollapsibleTrigger asChild>
-                  <button className="w-full flex items-center justify-between p-4 hover:bg-muted/30 transition-colors text-left">
-                    <div className="flex items-center gap-3">
+                  <Button variant="ghost" className="h-auto w-full flex items-center justify-between gap-3 whitespace-normal rounded-none p-4 hover:bg-muted/30 transition-colors text-left">
+                    <div className="flex min-w-0 items-center gap-3">
                       <span className="text-xl">{CATEGORIA_ICONS[categoria] || '📁'}</span>
                       <div>
-                        <p className="font-semibold">{categoria}</p>
+                        <p className="break-words font-semibold">{categoria}</p>
                         <p className="text-xs text-muted-foreground">{docs.length} documento{docs.length !== 1 ? 's' : ''}</p>
                       </div>
                     </div>
@@ -757,7 +802,7 @@ export default function AdminDocumentos() {
                     ) : (
                       <ChevronRight className="h-5 w-5 text-muted-foreground" />
                     )}
-                  </button>
+                  </Button>
                 </CollapsibleTrigger>
                 <CollapsibleContent>
                   <div className="border-t">
@@ -766,15 +811,17 @@ export default function AdminDocumentos() {
                       return (
                         <div
                           key={doc.id}
-                          className="flex items-center justify-between p-4 hover:bg-muted/20 border-b last:border-b-0 transition-colors"
+                          className="flex min-w-0 flex-col gap-3 p-4 hover:bg-muted/20 border-b last:border-b-0 transition-colors"
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
                             <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-lg shrink-0">
                               {getFileIcon(doc.ficheiro_url)}
                             </div>
                             <div className="min-w-0">
-                              <p className="font-medium truncate">{doc.titulo}</p>
+                              <p className="font-medium break-words">{doc.titulo}</p>
+                              {doc.subcategoria_id && <p className="mt-1 text-xs font-medium text-muted-foreground break-words">{subcategories.find(s => s.id === doc.subcategoria_id)?.nome}</p>}
                               <div className="flex flex-wrap items-center gap-2 mt-1">
+                                <DocumentExpiryBadge validade={doc.validade} />
                                 <Badge 
                                   variant={doc.visibilidade_geral ? 'default' : 'outline'} 
                                   className="text-xs gap-1"
@@ -802,15 +849,16 @@ export default function AdminDocumentos() {
                               </div>
                             </div>
                           </div>
-                          <div className="flex items-center gap-1.5 shrink-0 ml-2">
+                          <div className="flex min-w-0 flex-wrap items-center gap-2">
+                            <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:max-w-lg">
                             <Select
                               value={doc.categoria}
                               onValueChange={(value) => handleChangeCategory(doc, value)}
                             >
-                              <SelectTrigger className="h-8 w-[130px] sm:w-[160px] text-xs" title="Mudar categoria">
+                              <SelectTrigger className="min-w-0 w-full text-xs" aria-label={`Categoria de ${doc.titulo}`} title="Mudar categoria">
                                 <SelectValue />
                               </SelectTrigger>
-                              <SelectContent>
+                              <SelectContent className="max-w-[calc(100vw-2rem)]">
                                 {allCategorias.map((cat) => (
                                   <SelectItem key={cat} value={cat}>
                                     {CATEGORIA_ICONS[cat] || '📁'} {cat}
@@ -818,6 +866,8 @@ export default function AdminDocumentos() {
                                 ))}
                               </SelectContent>
                             </Select>
+                            <SubcategorySelect categories={subcategories} categoria={doc.categoria} value={doc.subcategoria_id} onChange={id => handleChangeSubcategory(doc, id)} label={`Subcategoria de ${doc.titulo}`} />
+                            </div>
                             {!doc.visibilidade_geral && (
                               <Button 
                                 variant="outline" 
@@ -855,7 +905,7 @@ export default function AdminDocumentos() {
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </AlertDialogTrigger>
-                              <AlertDialogContent>
+                              <AlertDialogContent className="w-[calc(100%-2rem)] max-w-lg">
                                 <AlertDialogHeader>
                                   <AlertDialogTitle>Eliminar documento?</AlertDialogTitle>
                                   <AlertDialogDescription>

@@ -7,6 +7,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { useAuth } from '@/contexts/AuthContext';
+import { DocumentExpiryBadge } from '@/components/documents/DocumentExpiryBadge';
+import { SubcategorySelect, type DocumentSubcategory } from '@/components/documents/SubcategorySelect';
 import { useEffectiveUser } from '@/contexts/ImpersonationContext';
 
 interface DocumentoRecord {
@@ -15,12 +17,16 @@ interface DocumentoRecord {
   categoria: string;
   ficheiro_url: string;
   created_at: string;
+  validade: string | null;
+  subcategoria_id: string | null;
 }
 
 export default function Documentos() {
   const [documentos, setDocumentos] = useState<DocumentoRecord[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [subcategories, setSubcategories] = useState<DocumentSubcategory[]>([]);
+  const [selectedSubcategory, setSelectedSubcategory] = useState<string | null>(null);
   const { user } = useAuth();
   const { effectiveUserId } = useEffectiveUser();
 
@@ -34,6 +40,8 @@ export default function Documentos() {
       return;
     }
 
+    const { data: subcats } = await supabase.from('documento_subcategorias').select('id,categoria,nome').order('nome');
+    setSubcategories(subcats || []);
     const { data: generalDocs, error: generalError } = await supabase
       .from('documentos')
       .select('*')
@@ -71,7 +79,7 @@ export default function Documentos() {
 
   const categories = [...new Set(documentos.map((d) => d.categoria))];
   const filteredDocs = selectedCategory
-    ? documentos.filter((d) => d.categoria === selectedCategory)
+    ? documentos.filter((d) => d.categoria === selectedCategory && (!selectedSubcategory || d.subcategoria_id === selectedSubcategory))
     : documentos;
 
   const getFileIcon = (url: string) => {
@@ -95,7 +103,7 @@ export default function Documentos() {
           <Button
             variant={selectedCategory === null ? 'default' : 'outline'}
             size="sm"
-            onClick={() => setSelectedCategory(null)}
+            onClick={() => { setSelectedCategory(null); setSelectedSubcategory(null); }}
           >
             Todos
           </Button>
@@ -104,13 +112,16 @@ export default function Documentos() {
               key={cat}
               variant={selectedCategory === cat ? 'default' : 'outline'}
               size="sm"
-              onClick={() => setSelectedCategory(cat)}
+              onClick={() => { setSelectedCategory(cat); setSelectedSubcategory(null); }}
+              className="h-auto max-w-full whitespace-normal text-left"
             >
               {cat}
             </Button>
           ))}
         </div>
       )}
+
+      {selectedCategory && <div className="max-w-xs"><SubcategorySelect categories={subcategories} categoria={selectedCategory} value={selectedSubcategory} onChange={setSelectedSubcategory} label="Filtrar subcategoria" /></div>}
 
       {/* Documents Grid */}
       {loading ? (
@@ -127,11 +138,13 @@ export default function Documentos() {
                     {getFileIcon(doc.ficheiro_url)}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium truncate">{doc.titulo}</h3>
-                    <div className="flex items-center gap-2 mt-1">
+                    <h3 className="font-medium break-words">{doc.titulo}</h3>
+                    <div className="flex flex-wrap items-center gap-2 mt-1">
                       <Badge variant="secondary" className="text-xs">
                         {doc.categoria}
                       </Badge>
+                      {doc.subcategoria_id && <Badge variant="outline" className="whitespace-normal">{subcategories.find(s => s.id === doc.subcategoria_id)?.nome}</Badge>}
+                      <DocumentExpiryBadge validade={doc.validade} />
                     </div>
                     <p className="text-xs text-muted-foreground mt-2">
                       {format(new Date(doc.created_at), "d MMM yyyy", { locale: pt })}
