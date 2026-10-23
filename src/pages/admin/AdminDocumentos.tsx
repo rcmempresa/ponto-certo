@@ -148,6 +148,7 @@ export default function AdminDocumentos() {
   const [selectedUsers, setSelectedUsers] = useState<string[]>([]);
   const [customCats, setCustomCats] = useState<string[]>([]);
   const [catDialogOpen, setCatDialogOpen] = useState(false);
+  const [subDialogOpen, setSubDialogOpen] = useState(false);
   const [newCatName, setNewCatName] = useState('');
   const [savingCat, setSavingCat] = useState(false);
   const allCategorias = useMemo(
@@ -724,6 +725,25 @@ export default function AdminDocumentos() {
           <Plus className="mr-2 h-4 w-4" />
           Nova categoria
         </Button>
+        <Button variant="outline" onClick={() => setSubDialogOpen(true)}>
+          <Plus className="mr-2 h-4 w-4" />
+          Nova subcategoria
+        </Button>
+      </div>
+
+      <Dialog open={subDialogOpen} onOpenChange={setSubDialogOpen}>
+        <DialogContent className="w-[calc(100%-2rem)] max-h-[90dvh] overflow-y-auto rounded-lg p-4 sm:p-6">
+          <DialogHeader>
+            <DialogTitle>Subcategorias</DialogTitle>
+            <DialogDescription>Escolha a categoria principal, escreva o nome e carregue em +.</DialogDescription>
+          </DialogHeader>
+          <SubcategoryManager parents={allCategorias} subcategories={subcategories} onChange={() => { void fetchData(); }} />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSubDialogOpen(false)}>Fechar</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      <div className="hidden">
       </div>
 
       {filterCategoria !== 'all' && <Select value={filterSubcategory} onValueChange={setFilterSubcategory}><SelectTrigger aria-label="Filtrer subcategoria" className="w-full min-w-0 sm:max-w-xs"><SelectValue /></SelectTrigger><SelectContent className="max-w-[calc(100vw-2rem)]"><SelectItem value="all">Todas as subcategorias</SelectItem>{subcategories.filter(s => s.categoria === filterCategoria).map(s => <SelectItem key={s.id} value={s.id}>{s.nome}</SelectItem>)}</SelectContent></Select>}
