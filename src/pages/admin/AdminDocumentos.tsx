@@ -45,7 +45,8 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { documentCategoryChange, documentUploadValidity } from '@/lib/documentRules';
+import { documentCategoryChange, documentNoticeDays, documentUploadValidity, paginate } from '@/lib/documentRules';
+import { ListPager } from '@/components/documents/ListPager';
 import { DocumentExpiryBadge } from '@/components/documents/DocumentExpiryBadge';
 import { SubcategorySelect, type DocumentSubcategory } from '@/components/documents/SubcategorySelect';
 import { SubcategoryManager } from '@/components/documents/SubcategoryManager';
@@ -60,6 +61,7 @@ interface DocumentoRecord {
   uploaded_by: string | null;
   subcategoria_id: string | null;
   validade: string | null;
+  aviso_dias: number;
 }
 
 interface Profile {
@@ -142,6 +144,8 @@ export default function AdminDocumentos() {
   const [subcategories, setSubcategories] = useState<DocumentSubcategory[]>([]);
   const [subcategory, setSubcategory] = useState<string | null>(null);
   const [hasExpiry, setHasExpiry] = useState(false);
+  const [noticeDays, setNoticeDays] = useState('15');
+  const [categoryPages, setCategoryPages] = useState<Record<string, number>>({});
   const [expiryDate, setExpiryDate] = useState('');
   const [filterSubcategory, setFilterSubcategory] = useState('all');
   const [file, setFile] = useState<File | null>(null);
@@ -306,7 +310,8 @@ export default function AdminDocumentos() {
     if (!user || !formData.titulo || !file) return;
 
     let validade: string | null;
-    try { validade = documentUploadValidity(hasExpiry, expiryDate); } catch (error) { toast({ title: 'Data de validade em falta', description: error instanceof Error ? error.message : '', variant: 'destructive' }); return; }
+    let aviso_dias = 15;
+    try { validade = documentUploadValidity(hasExpiry, expiryDate); if (hasExpiry) aviso_dias = documentNoticeDays(noticeDays); } catch (error) { toast({ title: 'Data de validade em falta', description: error instanceof Error ? error.message : '', variant: 'destructive' }); return; }
     setSubmitting(true);
 
     const sanitizeFileName = (name: string) => {
@@ -348,6 +353,7 @@ export default function AdminDocumentos() {
       uploaded_by: user.id,
       subcategoria_id: subcategory,
       validade,
+      aviso_dias,
     }).select().single();
 
     if (error) {
@@ -376,6 +382,7 @@ export default function AdminDocumentos() {
       setSubcategory(null);
       setHasExpiry(false);
       setExpiryDate('');
+      setNoticeDays('15');
       setSelectedUsers([]);
       fetchData();
     }
@@ -539,7 +546,7 @@ export default function AdminDocumentos() {
                 <Label htmlFor="has-expiry">O documento tem validade?</Label>
                 <Switch id="has-expiry" checked={hasExpiry} onCheckedChange={setHasExpiry} />
               </div>
-              {hasExpiry && <div className="space-y-2"><Label htmlFor="validade">Data de validade</Label><Input id="validade" type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} required /></div>}
+              {hasExpiry && <div className="grid gap-3 sm:grid-cols-2"><div className="space-y-2"><Label htmlFor="validade">Data de validade</Label><Input id="validade" type="date" value={expiryDate} onChange={e => setExpiryDate(e.target.value)} required /></div><div className="space-y-2"><Label htmlFor="aviso-dias">Avisar quantos dias antes</Label><Input id="aviso-dias" type="number" min={0} max={365} value={noticeDays} onChange={e => setNoticeDays(e.target.value)} /></div><p className="text-xs text-muted-foreground sm:col-span-2">Nesse dia aparece em Avisos e é enviado um email para geral@nrtechsolucion.pt.</p></div>}
               <div className="space-y-2">
                 <Label htmlFor="file">Ficheiro</Label>
                 <Input
@@ -802,7 +809,9 @@ export default function AdminDocumentos() {
         </div>
       ) : Object.keys(documentsByCategory).length > 0 ? (
         <div className="space-y-3">
-          {Object.entries(documentsByCategory).map(([categoria, docs]) => (
+          {Object.entries(documentsByCategory).map(([categoria, allDocs]) => {
+            const { items: docs, page: catPage, totalPages: catPages } = paginate(allDocs, categoryPages[categoria] || 1, 10);
+            return (
             <Collapsible
               key={categoria}
               open={expandedCategories.has(categoria)}
@@ -815,7 +824,7 @@ export default function AdminDocumentos() {
                       <span className="text-xl">{CATEGORIA_ICONS[categoria] || '📁'}</span>
                       <div>
                         <p className="break-words font-semibold">{categoria}</p>
-                        <p className="text-xs text-muted-foreground">{docs.length} documento{docs.length !== 1 ? 's' : ''}</p>
+                        <p className="text-xs text-muted-foreground">{allDocs.length} documento{allDocs.length !== 1 ? 's' : ''}</p>
                       </div>
                     </div>
                     {expandedCategories.has(categoria) ? (
@@ -848,7 +857,7 @@ export default function AdminDocumentos() {
                               <p className="font-medium break-words">{doc.titulo}</p>
                               {doc.subcategoria_id && <p className="mt-1 text-xs font-medium text-muted-foreground break-words">{subcategories.find(s => s.id === doc.subcategoria_id)?.nome}</p>}
                               <div className="flex flex-wrap items-center gap-2 mt-1">
-                                <DocumentExpiryBadge validade={doc.validade} />
+                                <DocumentExpiryBadge validade={doc.validade} avisoDias={doc.aviso_dias} />
                                 <Badge 
                                   variant={doc.visibilidade_geral ? 'default' : 'outline'} 
                                   className="text-xs gap-1"
@@ -965,10 +974,12 @@ export default function AdminDocumentos() {
                       );
                     })}
                   </div>
+                  <ListPager page={catPage} totalPages={catPages} onChange={p => setCategoryPages(prev => ({ ...prev, [categoria]: p }))} />
                 </CollapsibleContent>
               </Card>
             </Collapsible>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <Card className="border-0 shadow-soft">
