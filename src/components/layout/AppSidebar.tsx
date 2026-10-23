@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Clock, Calendar, FileText, FolderOpen, Users, CheckSquare, BarChart3, LogOut, ArrowLeftRight, Timer, ClipboardList, CalendarCheck } from 'lucide-react';
+import { BellRing, Clock, Calendar, FileText, FolderOpen, Users, CheckSquare, BarChart3, LogOut, ArrowLeftRight, Timer, ClipboardList, CalendarCheck } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -37,6 +37,7 @@ const adminMenuItems = [
   { title: 'Relatórios', url: '/admin/relatorios', icon: ClipboardList },
   { title: 'Aprovações', url: '/admin/aprovacoes', icon: CheckSquare },
   { title: 'Documentos', url: '/admin/documentos', icon: FolderOpen },
+  { title: 'Avisos', url: '/admin/avisos', icon: BellRing },
 ];
 
 export function AppSidebar() {

@@ -18,6 +18,7 @@ import AdminDashboard from "./pages/admin/AdminDashboard";
 import AdminEquipa from "./pages/admin/AdminEquipa";
 import AdminPonto from "./pages/admin/AdminPonto";
 import AdminAprovacoes from "./pages/admin/AdminAprovacoes";
+import AdminAvisos from './pages/admin/AdminAvisos';
 import AdminDocumentos from "./pages/admin/AdminDocumentos";
 import AdminHorasExtra from "./pages/admin/AdminHorasExtra";
 import AdminFolgasTrabalhadas from "./pages/admin/AdminFolgasTrabalhadas";
@@ -83,6 +84,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requireAdmin>
                     <AdminAprovacoes />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/avisos"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminAvisos />
                   </ProtectedRoute>
                 }
               />

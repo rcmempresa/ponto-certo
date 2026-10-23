@@ -40,7 +40,7 @@ export function DocumentExpiryPanel() {
     <section className="border-y py-5 space-y-4" aria-label="Documentos a expirar">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-lg font-semibold"><AlertTriangle className="h-5 w-5 shrink-0 text-warning" />Documentos a expirar ({documents.length})</h2>
-        <Button variant="outline" size="sm" asChild><Link to="/admin/documentos">Documentos<ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
+        <Button variant="outline" size="sm" asChild><Link to="/admin/avisos">Ver avisos<ArrowRight className="ml-2 h-4 w-4" /></Link></Button>
       </div>
       {loading ? <Loader2 className="h-5 w-5 animate-spin" /> : error ? <p className="text-sm text-destructive">Não foi possível consultar a validade dos documentos.</p> : documents.length === 0 ? <p className="text-sm text-muted-foreground">Sem documentos expirados ou a expirar nos próximos 15 dias.</p> : (
         <ul className="divide-y">
