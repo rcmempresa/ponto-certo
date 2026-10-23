@@ -15,6 +15,13 @@
       "when": 1792682656140,
       "tag": "0001_document_subcategories_and_expiry",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792762194608,
+      "tag": "0002_document_expiry_notice",
+      "breakpoints": true
     }
   ]
 }

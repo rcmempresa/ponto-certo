@@ -84,6 +84,8 @@ export type Database = {
       }
       documentos: {
         Row: {
+          aviso_dias: number
+          aviso_enviado_em: string | null
           categoria: string
           created_at: string
           ficheiro_url: string
@@ -95,6 +97,8 @@ export type Database = {
           visibilidade_geral: boolean
         }
         Insert: {
+          aviso_dias?: number
+          aviso_enviado_em?: string | null
           categoria?: string
           created_at?: string
           ficheiro_url: string
@@ -106,6 +110,8 @@ export type Database = {
           visibilidade_geral?: boolean
         }
         Update: {
+          aviso_dias?: number
+          aviso_enviado_em?: string | null
           categoria?: string
           created_at?: string
           ficheiro_url?: string
