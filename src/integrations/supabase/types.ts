@@ -420,6 +420,10 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: { _user_id?: string }; Returns: boolean }
+      rename_document_category: {
+        Args: { new_name: string; old_name: string }
+        Returns: undefined
+      }
     }
     Enums: {
       app_role: "admin" | "user"

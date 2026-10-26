@@ -50,6 +50,7 @@ import { ListPager } from '@/components/documents/ListPager';
 import { DocumentExpiryBadge } from '@/components/documents/DocumentExpiryBadge';
 import { SubcategorySelect, type DocumentSubcategory } from '@/components/documents/SubcategorySelect';
 import { SubcategoryManager } from '@/components/documents/SubcategoryManager';
+import { RenameFolderDialog } from '@/components/documents/RenameFolderDialog';
 
 interface DocumentoRecord {
   id: string;
@@ -156,9 +157,20 @@ export default function AdminDocumentos() {
   const [newCatName, setNewCatName] = useState('');
   const [savingCat, setSavingCat] = useState(false);
   const allCategorias = useMemo(
-    () => [...CATEGORIAS, ...customCats.filter((c) => !CATEGORIAS.includes(c))],
-    [customCats]
+    () => [...new Set([...customCats, ...documentos.map(d => d.categoria), ...subcategories.map(s => s.categoria)])],
+    [customCats, documentos, subcategories]
   );
+
+  const handleRenameCategory = async (oldName: string, newName: string) => {
+    const { error } = await supabase.rpc('rename_document_category', { old_name: oldName, new_name: newName });
+    if (error) { toast({ title: 'Não foi possível mudar o nome', description: error.message, variant: 'destructive' }); return false; }
+    if (filterCategoria === oldName) setFilterCategoria(newName);
+    setFormData(prev => prev.categoria === oldName ? { ...prev, categoria: newName } : prev);
+    setExpandedCategories(prev => { const next = new Set(prev); if (next.delete(oldName)) next.add(newName); return next; });
+    await fetchData();
+    toast({ title: 'Nome da categoria alterado' });
+    return true;
+  };
 
   const handleDeleteCategory = async (cat: string) => {
     const count = documentos.filter((d) => d.categoria === cat).length;
@@ -729,8 +741,8 @@ export default function AdminDocumentos() {
           </SelectContent>
         </Select>
         <Button variant="outline" onClick={() => setCatDialogOpen(true)}>
-          <Plus className="mr-2 h-4 w-4" />
-          Nova categoria
+          <Settings2 className="mr-2 h-4 w-4" />
+          Gerir pastas
         </Button>
         <Button variant="outline" onClick={() => setSubDialogOpen(true)}>
           <Plus className="mr-2 h-4 w-4" />
@@ -768,13 +780,15 @@ export default function AdminDocumentos() {
             maxLength={80}
             onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
           />
-          {customCats.filter((c) => !CATEGORIAS.includes(c)).length > 0 && (
+          {allCategorias.length > 0 && (
             <div className="space-y-2 pt-2">
               <Label>Categorias criadas</Label>
               <div className="max-h-56 overflow-y-auto rounded-md border divide-y">
-                {customCats.filter((c) => !CATEGORIAS.includes(c)).map((cat) => (
-                  <div key={cat} className="flex items-center justify-between px-3 py-2 text-sm">
-                    <span className="min-w-0 break-words">{cat}</span>
+                {allCategorias.map((cat) => (
+                  <div key={cat} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
+                    <span className="min-w-0 flex-1 break-words">{cat}</span>
+                    <RenameFolderDialog name={cat} onRename={nome => handleRenameCategory(cat, nome)} />
+                    {!CATEGORIAS.includes(cat) && (
                     <Button
                       variant="ghost"
                       size="icon"
@@ -784,6 +798,7 @@ export default function AdminDocumentos() {
                     >
                       <Trash2 className="h-4 w-4" />
                     </Button>
+                    )}
                   </div>
                 ))}
               </div>
