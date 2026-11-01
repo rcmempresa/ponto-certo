@@ -1,4 +1,6 @@
 # Documentos
+- [x] Adaptar ponto-empregado ao contrato pedido com AGENT_SECRET e user_id na presença da equipa.
+- [ ] Configurar AGENT_SECRET e verificar a função atualizada e os testes.
 - [x] Criar ponto-empregado com seis ações, autenticação PONTO_SECRET, validação e testes.
 - [x] Configurar PONTO_SECRET no formulário seguro e verificar bloqueio de chamadas não autorizadas; execução autenticada externa não verificada.
 - [x] Permitir renomear categorias e subcategorias existentes, preservando documentos, e verificar o fluxo.

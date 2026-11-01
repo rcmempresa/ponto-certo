@@ -1,9 +1,23 @@
 import { describe, expect, it } from 'vitest';
-import { dailySummary, dayBoundary, pairedHours, presence, validSecret } from '../../supabase/functions/ponto-empregado/rules';
+import { dailySummary, dayBoundary, getAgentSecret, pairedHours, presence, teamPresence, validSecret } from '../../supabase/functions/ponto-empregado/rules';
 import { requestSchema } from '../../supabase/functions/ponto-empregado/schema';
 
 const punch = (tipo: 'entrada' | 'saida', timestamp: string) => ({ tipo, timestamp });
 describe('ponto-empregado contract', () => {
+  it('authenticates against AGENT_SECRET without falling back to PONTO_SECRET', async () => {
+    const env: Record<string, string> = { AGENT_SECRET: 'new-test-only-value', PONTO_SECRET: 'old-test-only-value' };
+    const secret = getAgentSecret(name => env[name]);
+    expect(await validSecret('new-test-only-value', secret ?? '')).toBe(true);
+    expect(await validSecret('old-test-only-value', secret ?? '')).toBe(false);
+    expect(getAgentSecret(name => ({ PONTO_SECRET: 'old-test-only-value' })[name])).toBeUndefined();
+  });
+  it('returns every team member with user_id, name and their own daily presence', () => {
+    const team = [{ id: 'employee-one', nome: 'Ana' }, { id: 'employee-two', nome: 'Rui' }];
+    expect(teamPresence(team, [{ user_id: 'employee-one', tipo: 'entrada', timestamp: '2026-11-01T08:00:00Z' }])).toEqual([
+      { user_id: 'employee-one', name: 'Ana', estado: 'dentro', ultima_entrada: '2026-11-01T08:00:00Z' },
+      { user_id: 'employee-two', name: 'Rui', estado: 'sem_registo' },
+    ]);
+  });
   it('sums completed pairs as elapsed hours without payroll deductions', () => {
     expect(pairedHours([punch('entrada', '2026-11-01T08:00:00Z'), punch('saida', '2026-11-01T12:00:00Z'), punch('entrada', '2026-11-01T13:00:00Z'), punch('saida', '2026-11-01T18:30:00Z')])).toBe(9.5);
   });
