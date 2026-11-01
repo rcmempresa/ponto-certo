@@ -419,6 +419,23 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      agent_decide_request: {
+        Args: {
+          p_id: string
+          p_motivo?: string
+          p_status: string
+          p_tipo: string
+        }
+        Returns: Json
+      }
+      agent_register_punch: {
+        Args: {
+          p_localizacao?: string
+          p_tipo: Database["public"]["Enums"]["ponto_tipo"]
+          p_user_id: string
+        }
+        Returns: Json
+      }
       is_admin: { Args: { _user_id?: string }; Returns: boolean }
       rename_document_category: {
         Args: { new_name: string; old_name: string }
