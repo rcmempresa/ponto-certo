@@ -1,6 +1,6 @@
 # Documentos
 - [x] Criar ponto-empregado com seis ações, autenticação PONTO_SECRET, validação e testes.
-- [ ] Configurar PONTO_SECRET no formulário seguro; chamadas autenticadas aguardam este segredo.
+- [x] Configurar PONTO_SECRET no formulário seguro e verificar bloqueio de chamadas não autorizadas; execução autenticada externa não verificada.
 - [x] Permitir renomear categorias e subcategorias existentes, preservando documentos, e verificar o fluxo.
 - [x] Ajustar a gestão documental ao telemóvel.
 - [x] Criar e gerir subcategorias e mover documentos.
