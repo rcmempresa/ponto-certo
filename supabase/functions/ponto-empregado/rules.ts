@@ -56,6 +56,18 @@ export function presence(records: Punch[]) {
   };
 }
 
+export function teamPresence(team: { id: string; nome: string }[], records: (Punch & { user_id: string })[]) {
+  return team.map(person => ({
+    user_id: person.id,
+    name: person.nome,
+    ...presence(records.filter(record => record.user_id === person.id)),
+  }));
+}
+
+export function getAgentSecret(readEnv: (name: string) => string | undefined) {
+  return readEnv('AGENT_SECRET');
+}
+
 export async function validSecret(provided: string | null, expected: string): Promise<boolean> {
   if (!provided || !expected) return false;
   const encoder = new TextEncoder();

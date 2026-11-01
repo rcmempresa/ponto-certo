@@ -1,7 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders as sdkCorsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { requestSchema } from './schema.ts';
-import { addDay, dailySummary, dayBoundary, localDay, pairedHours, presence, validSecret } from './rules.ts';
+import { addDay, dailySummary, dayBoundary, getAgentSecret, localDay, pairedHours, teamPresence, validSecret } from './rules.ts';
 
 const corsHeaders = { ...sdkCorsHeaders, 'Access-Control-Allow-Headers': `${sdkCorsHeaders['Access-Control-Allow-Headers']}, x-agent-secret` };
 const response = (body: unknown, status = 200) => new Response(JSON.stringify(body), {
@@ -12,8 +12,8 @@ const response = (body: unknown, status = 200) => new Response(JSON.stringify(bo
 Deno.serve(async req => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
   if (req.method !== 'POST') return response({ error: 'Método não permitido' }, 405);
-  const secret = Deno.env.get('PONTO_SECRET');
-  if (!secret) return response({ error: 'PONTO_SECRET não configurado' }, 503);
+  const secret = getAgentSecret(name => Deno.env.get(name));
+  if (!secret) return response({ error: 'AGENT_SECRET não configurado' }, 503);
   if (!await validSecret(req.headers.get('x-agent-secret'), secret)) return response({ error: 'Unauthorized' }, 401);
   let body: unknown;
   try { body = await req.json(); } catch { return response({ error: 'JSON inválido' }, 400); }
@@ -54,7 +54,7 @@ Deno.serve(async req => {
         const { data, error } = await db.rpc('agent_register_punch', { p_user_id: user_id, p_tipo: tipo, p_localizacao: localizacao ?? null });
         if (error) throw error;
         const hours = tipo === 'saida' ? pairedHours(await punches(localDay(data.timestamp), localDay(data.timestamp), user_id)) : undefined;
-        return response({ data: { id: data.id, tipo: data.tipo, timestamp: data.timestamp, ...(hours !== undefined ? { horas_hoje: hours } : {}) } });
+        return response({ data: { timestamp: data.timestamp, ...(hours !== undefined ? { horas_hoje: hours } : {}) } });
       }
       case 'ver_ponto': {
         const data = await punches(input.params.date, input.params.date, input.params.user_id);
@@ -63,7 +63,7 @@ Deno.serve(async req => {
       case 'presenca_equipa': {
         const today = localDay(new Date().toISOString());
         const [team, records] = await Promise.all([profiles(), punches(today, today)]);
-        return response({ data: team.map(person => ({ name: person.nome, ...presence(records.filter(record => record.user_id === person.id)) })) });
+        return response({ data: teamPresence(team, records) });
       }
       case 'resumo_semana': {
         const { user_id, date_from, date_to } = input.params;

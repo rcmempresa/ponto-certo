@@ -1,5 +1,5 @@
 # Architecture
-- Keep the administrative agent endpoint server-only, authenticate its shared secret before any database access, and restrict atomic punch/approval RPCs to service_role; this prevents duplicate punches and partial vacation balance updates.
+- Keep the administrative agent endpoint server-only, authenticate x-agent-secret exclusively against AGENT_SECRET before any database access, and restrict atomic punch/approval RPCs to service_role; this prevents unauthorized access, duplicate punches and partial vacation balance updates.
 - Agent time summaries report elapsed completed-pair hours in Atlantic/Madeira, independently of payroll deductions; this preserves the integration contract without changing employee dashboard calculations.
 - Keep document expiry date rules in a shared document-rules module and cover them with focused tests so employee, administrator and dashboard views agree.
 - Store one-level document subcategories in a separate protected table linked to documents; use persisted categories and an atomic admin-only rename function to update parent names across categories, subcategories and documents without changing document associations.
