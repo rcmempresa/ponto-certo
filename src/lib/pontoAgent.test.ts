@@ -9,7 +9,7 @@ describe('ponto-empregado contract', () => {
     const secret = getAgentSecret(name => env[name]);
     expect(await validSecret('new-test-only-value', secret ?? '')).toBe(true);
     expect(await validSecret('old-test-only-value', secret ?? '')).toBe(false);
-    expect(getAgentSecret(name => ({ PONTO_SECRET: 'old-test-only-value' })[name])).toBeUndefined();
+    expect(getAgentSecret(name => name === 'PONTO_SECRET' ? 'old-test-only-value' : undefined)).toBeUndefined();
   });
   it('returns every team member with user_id, name and their own daily presence', () => {
     const team = [{ id: 'employee-one', nome: 'Ana' }, { id: 'employee-two', nome: 'Rui' }];
