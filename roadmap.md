@@ -1,4 +1,5 @@
 # Documentos
+- [ ] Completar e verificar criação, consulta, edição e eliminação de categorias e subcategorias em Gerir pastas.
 - [x] Adaptar ponto-empregado ao contrato pedido com AGENT_SECRET e user_id na presença da equipa.
 - [x] Configurar AGENT_SECRET, disponibilizar a função e passar 11 testes; verificar consultas autenticadas com dados reais e rejeições de escrita sem alterar registos dos colaboradores.
 - [x] Criar ponto-empregado com seis ações, autenticação PONTO_SECRET, validação e testes.

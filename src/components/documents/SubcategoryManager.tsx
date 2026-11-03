@@ -17,10 +17,11 @@ export function SubcategoryManager({ parents, subcategories, onChange }: {
   const [name, setName] = useState('');
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const selectedParent = parents.includes(parent) ? parent : parents[0] || '';
   const create = async () => {
-    if (!name.trim() || saving) return;
+    if (!name.trim() || saving || !selectedParent) return;
     setSaving(true);
-    const { error } = await supabase.from('documento_subcategorias').insert({ categoria: parent, nome: name.trim() });
+    const { error } = await supabase.from('documento_subcategorias').insert({ categoria: selectedParent, nome: name.trim() });
     setSaving(false);
     if (error) { toast({ title: 'Não foi possível criar a subcategoria', description: error.code === '23505' ? 'Esta subcategoria já existe nesta categoria.' : error.message, variant: 'destructive' }); return; }
     setName('');
@@ -43,8 +44,9 @@ export function SubcategoryManager({ parents, subcategories, onChange }: {
   return <div className="border-t pt-4 space-y-3">
     <h3 className="font-medium">Subcategorias</h3>
     <Label>Categoria principal</Label>
-    <Select value={parent} onValueChange={setParent}><SelectTrigger aria-label="Categoria principal" className="min-w-0"><SelectValue /></SelectTrigger><SelectContent className="max-w-[calc(100vw-2rem)]">{parents.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select>
-    <div className="flex gap-2"><Input aria-label="Nome da subcategoria" value={name} onChange={e => setName(e.target.value)} placeholder="Nome da subcategoria" maxLength={80} className="min-w-0" /><Button size="icon" disabled={saving || !name.trim()} onClick={create} aria-label="Criar subcategoria" title="Criar subcategoria">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}</Button></div>
-    <ul className="divide-y">{subcategories.filter(s => s.categoria === parent).map(s => <li key={s.id} className="flex items-center justify-between gap-2 py-2"><span className="min-w-0 flex-1 break-words text-sm">{s.nome}</span><RenameFolderDialog name={s.nome} onRename={nome => rename(s.id, nome)} /><AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" aria-label={`Eliminar subcategoria ${s.nome}`} title="Eliminar subcategoria" className="shrink-0 text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger><AlertDialogContent className="w-[calc(100%-2rem)] max-w-lg"><AlertDialogHeader><AlertDialogTitle>Eliminar subcategoria?</AlertDialogTitle><AlertDialogDescription>Os documentos de “{s.nome}” continuam na categoria “{parent}”, sem subcategoria.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => remove(s.id)}>Eliminar</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></li>)}</ul>
+    <Select value={selectedParent} onValueChange={setParent}><SelectTrigger aria-label="Categoria principal" className="min-w-0"><SelectValue placeholder="Selecionar categoria" /></SelectTrigger><SelectContent className="max-w-[calc(100vw-2rem)]">{parents.map(p => <SelectItem key={p} value={p}>{p}</SelectItem>)}</SelectContent></Select>
+    <div className="flex gap-2"><Input aria-label="Nome da subcategoria" value={name} onChange={e => setName(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') void create(); }} placeholder="Nome da subcategoria" maxLength={80} className="min-w-0" /><Button size="icon" className="shrink-0" disabled={saving || !name.trim() || !selectedParent} onClick={create} aria-label="Criar subcategoria" title="Criar subcategoria">{saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}</Button></div>
+    <ul className="max-h-56 overflow-y-auto divide-y">{subcategories.filter(s => s.categoria === selectedParent).map(s => <li key={s.id} className="flex items-center justify-between gap-2 py-2"><span className="min-w-0 flex-1 break-words text-sm">{s.nome}</span><RenameFolderDialog name={s.nome} onRename={nome => rename(s.id, nome)} /><AlertDialog><AlertDialogTrigger asChild><Button variant="ghost" size="icon" aria-label={`Eliminar subcategoria ${s.nome}`} title="Eliminar subcategoria" className="shrink-0 text-destructive"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger><AlertDialogContent className="w-[calc(100%-2rem)] max-w-lg"><AlertDialogHeader><AlertDialogTitle>Eliminar subcategoria?</AlertDialogTitle><AlertDialogDescription>Os documentos de “{s.nome}” continuam na categoria “{selectedParent}”, sem subcategoria.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => remove(s.id)}>Eliminar</AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialog></li>)}</ul>
+    {!subcategories.some(s => s.categoria === selectedParent) && <p className="text-sm text-muted-foreground">Sem subcategorias.</p>}
   </div>;
 }
