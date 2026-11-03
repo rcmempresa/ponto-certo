@@ -282,9 +282,15 @@ export default function Ferias() {
       tipo_fim: finalTipoFim,
     };
 
-    const { error } = editingId
-      ? await supabase.from('ferias').update(payload).eq('id', editingId)
-      : await supabase.from('ferias').insert({ ...payload, user_id: user.id });
+    const { data: saved, error } = editingId
+      ? await supabase.from('ferias').update(payload).eq('id', editingId).select('id').single()
+      : await supabase.from('ferias').insert({ ...payload, user_id: user.id }).select('id').single();
+
+    if (saved?.id) {
+      supabase.functions
+        .invoke('notify-request-submitted', { body: { tipo: 'ferias', id: saved.id } })
+        .catch((e) => console.error('Falha ao notificar', e));
+    }
 
     if (error) {
       toast({
