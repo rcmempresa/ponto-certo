@@ -173,8 +173,8 @@ export default function AdminDocumentos() {
   };
 
   const handleDeleteCategory = async (cat: string) => {
+    if (cat === 'Geral') return;
     const count = documentos.filter((d) => d.categoria === cat).length;
-    if (!window.confirm(`Eliminar a categoria "${cat}"?${count ? ` Os ${count} documento(s) passam para "Geral".` : ''}`)) return;
     if (count) {
       const { error: moveError } = await supabase.from('documentos').update(documentCategoryChange('Geral')).eq('categoria', cat);
       if (moveError) {
@@ -234,7 +234,6 @@ export default function AdminDocumentos() {
     setFormData((f) => ({ ...f, categoria: nome }));
     setSubcategory(null);
     setNewCatName('');
-    setCatDialogOpen(false);
     toast({ title: 'Categoria criada', description: nome });
   };
 
@@ -770,16 +769,23 @@ export default function AdminDocumentos() {
       <Dialog open={catDialogOpen} onOpenChange={setCatDialogOpen}>
         <DialogContent className="w-[calc(100%-2rem)] max-h-[90dvh] overflow-y-auto rounded-lg p-4 sm:p-6">
           <DialogHeader>
-            <DialogTitle>Categorias</DialogTitle>
-            <DialogDescription>Crie ou elimine categorias para organizar os documentos.</DialogDescription>
+            <DialogTitle>Gerir pastas</DialogTitle>
+            <DialogDescription>Categorias e subcategorias dos documentos da empresa.</DialogDescription>
           </DialogHeader>
+          <Label htmlFor="new-category-name">Nova categoria</Label>
+          <div className="flex gap-2">
           <Input
+            id="new-category-name"
             value={newCatName}
             onChange={(e) => setNewCatName(e.target.value)}
             placeholder="Ex: Contratos"
             maxLength={80}
             onKeyDown={(e) => e.key === 'Enter' && handleCreateCategory()}
           />
+          <Button size="icon" aria-label="Criar categoria" title="Criar categoria" onClick={handleCreateCategory} disabled={savingCat || !newCatName.trim()} className="shrink-0">
+            {savingCat ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
+          </Button>
+          </div>
           {allCategorias.length > 0 && (
             <div className="space-y-2 pt-2">
               <Label>Categorias criadas</Label>
@@ -788,17 +794,13 @@ export default function AdminDocumentos() {
                   <div key={cat} className="flex items-center justify-between gap-2 px-3 py-2 text-sm">
                     <span className="min-w-0 flex-1 break-words">{cat}</span>
                     <RenameFolderDialog name={cat} onRename={nome => handleRenameCategory(cat, nome)} />
-                    {!CATEGORIAS.includes(cat) && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-7 w-7 text-destructive hover:text-destructive"
-                      title="Eliminar categoria"
-                      onClick={() => handleDeleteCategory(cat)}
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
-                    )}
+                    {cat !== 'Geral' && <AlertDialog>
+                      <AlertDialogTrigger asChild><Button variant="ghost" size="icon" className="h-8 w-8 shrink-0 text-destructive" aria-label={`Eliminar categoria ${cat}`} title="Eliminar categoria"><Trash2 className="h-4 w-4" /></Button></AlertDialogTrigger>
+                      <AlertDialogContent className="w-[calc(100%-2rem)] max-w-lg">
+                        <AlertDialogHeader><AlertDialogTitle>Eliminar categoria?</AlertDialogTitle><AlertDialogDescription>A categoria “{cat}” e as suas subcategorias serão eliminadas. Os {categoriesWithDocs[cat] || 0} documentos permanecem guardados e passam para “Geral”.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter><AlertDialogCancel>Cancelar</AlertDialogCancel><AlertDialogAction onClick={() => handleDeleteCategory(cat)}>Eliminar</AlertDialogAction></AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>}
                   </div>
                 ))}
               </div>
@@ -809,10 +811,6 @@ export default function AdminDocumentos() {
           <SubcategoryManager parents={allCategorias} subcategories={subcategories} onChange={() => { void fetchData(); }} />
           <DialogFooter className="gap-2">
             <Button variant="outline" onClick={() => setCatDialogOpen(false)}>Fechar</Button>
-            <Button onClick={handleCreateCategory} disabled={savingCat || !newCatName.trim()}>
-              {savingCat && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-              Criar
-            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
