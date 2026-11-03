@@ -9,3 +9,6 @@ verify_jwt = false
 
 [functions.document-expiry-check]
 verify_jwt = false
+
+[functions.notify-request-submitted]
+verify_jwt = true
