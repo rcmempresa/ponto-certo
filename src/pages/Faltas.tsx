@@ -108,7 +108,7 @@ export default function Faltas() {
       }
     }
 
-    const { error } = await supabase.from('faltas').insert({
+    const { data: inserted, error } = await supabase.from('faltas').insert({
       user_id: user.id,
       data: formData.data,
       motivo: formData.motivo,
@@ -117,7 +117,13 @@ export default function Faltas() {
       tipo_falta: formData.tipo_falta,
       hora_inicio: formData.tipo_falta === 'parcial' ? formData.hora_inicio : null,
       hora_fim: formData.tipo_falta === 'parcial' ? formData.hora_fim : null,
-    });
+    }).select('id').single();
+
+    if (inserted?.id) {
+      supabase.functions
+        .invoke('notify-request-submitted', { body: { tipo: 'falta', id: inserted.id } })
+        .catch((e) => console.error('Falha ao notificar', e));
+    }
 
     if (error) {
       toast({

@@ -18,9 +18,11 @@ export interface TemplateEntry {
  *   // then add to TEMPLATES: 'welcome': welcomeTemplate
  */
 import { template as documentExpiry } from './document-expiry.tsx'
+import { template as requestSubmitted } from './request-submitted.tsx'
 
 export const TEMPLATES: Record<string, TemplateEntry> = {
   'document-expiry': documentExpiry,
+  'request-submitted': requestSubmitted,
   // Add templates here as they are created, e.g.:
   // 'welcome': welcomeTemplate,
 }
