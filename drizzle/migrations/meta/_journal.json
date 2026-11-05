@@ -36,6 +36,13 @@
       "when": 1793555696343,
       "tag": "0004_ponto_agent_atomic_actions",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1793870148110,
+      "tag": "0005_baixas_medicas",
+      "breakpoints": true
     }
   ]
 }
