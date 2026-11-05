@@ -40,3 +40,13 @@ describe('custom notice days', () => {
     expect(r).toEqual({ items: [20, 21, 22], page: 3, totalPages: 3 });
   });
 });
+
+import { documentTitle } from './documentRules';
+describe('documentTitle', () => {
+  it('trims and accepts 1-150 chars, rejects empty or too long', () => {
+    expect(documentTitle('  Contrato  ')).toBe('Contrato');
+    expect(documentTitle('   ')).toBeNull();
+    expect(documentTitle('a'.repeat(151))).toBeNull();
+    expect(documentTitle('a'.repeat(150))).toBe('a'.repeat(150));
+  });
+});

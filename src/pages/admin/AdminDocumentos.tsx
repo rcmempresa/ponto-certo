@@ -45,12 +45,13 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
-import { documentCategoryChange, documentNoticeDays, documentUploadValidity, paginate } from '@/lib/documentRules';
+import { documentTitle, documentCategoryChange, documentNoticeDays, documentUploadValidity, paginate } from '@/lib/documentRules';
 import { ListPager } from '@/components/documents/ListPager';
 import { DocumentExpiryBadge } from '@/components/documents/DocumentExpiryBadge';
 import { SubcategorySelect, type DocumentSubcategory } from '@/components/documents/SubcategorySelect';
 import { SubcategoryManager } from '@/components/documents/SubcategoryManager';
 import { RenameFolderDialog } from '@/components/documents/RenameFolderDialog';
+import { DocumentRow } from '@/components/documents/DocumentRow';
 
 interface DocumentoRecord {
   id: string;
@@ -135,6 +136,7 @@ export default function AdminDocumentos() {
   const [savingPermissions, setSavingPermissions] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCategoria, setFilterCategoria] = useState<string>('all');
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set(CATEGORIAS));
 
   const [formData, setFormData] = useState({
@@ -207,6 +209,25 @@ export default function AdminDocumentos() {
     setDocumentos((prev) => prev.map((d) => (d.id === doc.id ? { ...d, ...documentCategoryChange(categoria) } : d)));
     setExpandedCategories((prev) => new Set(prev).add(categoria));
     toast({ title: 'Categoria alterada', description: `"${doc.titulo}" movido para ${categoria}.` });
+  };
+
+  const handleRenameDocument = async (doc: DocumentoRecord, value: string) => {
+    const titulo = documentTitle(value);
+    if (!titulo) return false;
+    const { error } = await supabase.from('documentos').update({ titulo }).eq('id', doc.id);
+    if (error) { toast({ title: 'Erro ao mudar nome', description: error.message, variant: 'destructive' }); return false; }
+    setDocumentos(prev => prev.map(d => d.id === doc.id ? { ...d, titulo } : d));
+    toast({ title: 'Nome alterado' });
+    return true;
+  };
+
+  const handleMoveDocument = async (doc: DocumentoRecord, categoria: string, subcategoria_id: string | null) => {
+    const { error } = await supabase.from('documentos').update({ categoria, subcategoria_id }).eq('id', doc.id);
+    if (error) { toast({ title: 'Erro ao mover documento', description: error.message, variant: 'destructive' }); return false; }
+    setDocumentos(prev => prev.map(d => d.id === doc.id ? { ...d, categoria, subcategoria_id } : d));
+    setExpandedCategories(prev => new Set(prev).add(categoria));
+    toast({ title: 'Documento movido', description: `"${doc.titulo}" está agora em ${categoria}.` });
+    return true;
   };
 
   const handleChangeSubcategory = async (doc: DocumentoRecord, id: string | null) => {
@@ -282,7 +303,11 @@ export default function AdminDocumentos() {
         grouped[doc.categoria] = [];
       }
       grouped[doc.categoria].push(doc);
-      grouped[doc.categoria].sort((a, b) => (subcategories.find(s => s.id === a.subcategoria_id)?.nome || '').localeCompare(subcategories.find(s => s.id === b.subcategoria_id)?.nome || ''));
+      grouped[doc.categoria].sort((a, b) => {
+        const sa = subcategories.find(s => s.id === a.subcategoria_id)?.nome, sb = subcategories.find(s => s.id === b.subcategoria_id)?.nome;
+        if (sa !== sb) return !sa ? 1 : !sb ? -1 : sa.localeCompare(sb, 'pt');
+        return a.titulo.localeCompare(b.titulo, 'pt');
+      });
     }
     // Sort categories by CATEGORIAS order
     const sorted: Record<string, DocumentoRecord[]> = {};
@@ -850,139 +875,38 @@ export default function AdminDocumentos() {
                 <CollapsibleContent>
                   <div className="border-t">
                     {docs.map((doc, index) => {
-                      const uploaderName = getUploaderName(doc.uploaded_by);
+                      const hasSubs = subcategories.some(s => s.categoria === categoria);
+                      const groupKey = `${categoria}:${doc.subcategoria_id || 'none'}`;
+                      const startsGroup = hasSubs && (index === 0 || docs[index - 1].subcategoria_id !== doc.subcategoria_id);
+                      const collapsed = hasSubs && collapsedGroups.has(groupKey);
                       return (
                         <Fragment key={doc.id}>
-                        {subcategories.some(s => s.categoria === categoria) && (index === 0 || docs[index - 1].subcategoria_id !== doc.subcategoria_id) && (
-                          <h3 className="border-b bg-muted/40 px-4 py-2 text-sm font-medium break-words">
-                            {subcategories.find(s => s.id === doc.subcategoria_id)?.nome || 'Sem subcategoria'}
-                          </h3>
-                        )}
-                        <div
-                          key={doc.id}
-                          className="flex min-w-0 flex-col gap-3 p-4 hover:bg-muted/20 border-b last:border-b-0 transition-colors"
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-muted text-lg shrink-0">
-                              {getFileIcon(doc.ficheiro_url)}
-                            </div>
-                            <div className="min-w-0">
-                              <p className="font-medium break-words">{doc.titulo}</p>
-                              {doc.subcategoria_id && <p className="mt-1 text-xs font-medium text-muted-foreground break-words">{subcategories.find(s => s.id === doc.subcategoria_id)?.nome}</p>}
-                              <div className="flex flex-wrap items-center gap-2 mt-1">
-                                <DocumentExpiryBadge validade={doc.validade} avisoDias={doc.aviso_dias} />
-                                <Badge 
-                                  variant={doc.visibilidade_geral ? 'default' : 'outline'} 
-                                  className="text-xs gap-1"
-                                >
-                                  {doc.visibilidade_geral ? (
-                                    <>
-                                      <Eye className="h-3 w-3" />
-                                      Público
-                                    </>
-                                  ) : (
-                                    <>
-                                      <EyeOff className="h-3 w-3" />
-                                      Restrito ({getDocumentPermissionCount(doc.id)})
-                                    </>
-                                  )}
-                                </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  {format(new Date(doc.created_at), "d MMM yyyy", { locale: pt })}
-                                </span>
-                                {uploaderName && (
-                                  <span className="text-xs text-muted-foreground">
-                                    por {uploaderName}
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                          <div className="flex min-w-0 flex-wrap items-center gap-2">
-                            <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:grid-cols-2 sm:max-w-lg">
-                            <Select
-                              value={doc.categoria}
-                              onValueChange={(value) => handleChangeCategory(doc, value)}
-                            >
-                              <SelectTrigger className="min-w-0 w-full text-xs" aria-label={`Categoria de ${doc.titulo}`} title="Mudar categoria">
-                                <SelectValue />
-                              </SelectTrigger>
-                              <SelectContent className="max-w-[calc(100vw-2rem)]">
-                                {allCategorias.map((cat) => (
-                                  <SelectItem key={cat} value={cat}>
-                                    {CATEGORIA_ICONS[cat] || '📁'} {cat}
-                                  </SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
-                            <SubcategorySelect categories={subcategories} categoria={doc.categoria} value={doc.subcategoria_id} onChange={id => handleChangeSubcategory(doc, id)} label={`Subcategoria de ${doc.titulo}`} />
-                            </div>
-                            {!doc.visibilidade_geral && (
-                              <Button 
-                                variant="outline" 
-                                size="sm"
-                                onClick={() => openPermissionsDialog(doc)}
-                              aria-label={`Permissões de ${doc.titulo}`}
-                              title="Permissões"
-                              >
-                                <Users className="mr-1 h-4 w-4" />
-                                <span className="hidden sm:inline">Permissões</span>
-                              </Button>
-                            )}
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => toggleVisibility(doc)}
-                              title={doc.visibilidade_geral ? 'Tornar restrito' : 'Tornar público'}
-                              aria-label={doc.visibilidade_geral ? `Tornar restrito: ${doc.titulo}` : `Tornar público: ${doc.titulo}`}
-                            >
-                              {doc.visibilidade_geral ? (
-                                <EyeOff className="h-4 w-4" />
-                              ) : (
-                                <Eye className="h-4 w-4" />
-                              )}
-                            </Button>
-                            <Button variant="outline" size="sm" asChild>
-                              <a href={doc.ficheiro_url} target="_blank" rel="noopener noreferrer">
-                                Ver
-                              </a>
-                            </Button>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button
-                                  variant="outline"
-                                  size="icon"
-                                  aria-label={`Eliminar documento ${doc.titulo}`}
-                                  title="Eliminar documento"
-                                  className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                                >
-                                  <Trash2 className="h-4 w-4" />
-                                </Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent className="w-[calc(100%-2rem)] max-w-lg">
-                                <AlertDialogHeader>
-                                  <AlertDialogTitle>Eliminar documento?</AlertDialogTitle>
-                                  <AlertDialogDescription>
-                                    Esta ação não pode ser revertida. O documento será permanentemente eliminado.
-                                  </AlertDialogDescription>
-                                </AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Cancelar</AlertDialogCancel>
-                                  <AlertDialogAction
-                                    onClick={() => handleDelete(doc.id)}
-                                    className="bg-destructive hover:bg-destructive/90"
-                                  >
-                                    {deletingId === doc.id ? (
-                                      <Loader2 className="h-4 w-4 animate-spin" />
-                                    ) : (
-                                      'Eliminar'
-                                    )}
-                                  </AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </div>
-                        </div>
+                          {startsGroup && (
+                            <button type="button" onClick={() => setCollapsedGroups(prev => { const n = new Set(prev); n.has(groupKey) ? n.delete(groupKey) : n.add(groupKey); return n; })}
+                              className="flex w-full items-center gap-2 border-b bg-muted/40 px-4 py-2 text-left text-sm font-medium hover:bg-muted/60">
+                              {collapsed ? <ChevronRight className="h-4 w-4 shrink-0" /> : <ChevronDown className="h-4 w-4 shrink-0" />}
+                              <FolderOpen className="h-4 w-4 shrink-0 text-muted-foreground" />
+                              <span className="min-w-0 flex-1 break-words">{subcategories.find(s => s.id === doc.subcategoria_id)?.nome || 'Sem subcategoria'}</span>
+                              <span className="text-xs text-muted-foreground">{allDocs.filter(d => d.subcategoria_id === doc.subcategoria_id).length}</span>
+                            </button>
+                          )}
+                          {!collapsed && (
+                            <DocumentRow
+                              doc={doc}
+                              icon={getFileIcon(doc.ficheiro_url)}
+                              uploaderName={getUploaderName(doc.uploaded_by)}
+                              permissionCount={getDocumentPermissionCount(doc.id)}
+                              categories={allCategorias}
+                              categoryIcons={CATEGORIA_ICONS}
+                              subcategories={subcategories}
+                              deleting={deletingId === doc.id}
+                              onRename={handleRenameDocument}
+                              onMove={handleMoveDocument}
+                              onPermissions={d => openPermissionsDialog(doc)}
+                              onToggleVisibility={() => toggleVisibility(doc)}
+                              onDelete={handleDelete}
+                            />
+                          )}
                         </Fragment>
                       );
                     })}

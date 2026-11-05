@@ -36,3 +36,10 @@ export function documentUploadValidity(hasExpiry: boolean, date: string) {
   }
   return date;
 }
+
+export const DOCUMENT_TITLE_MAX = 150;
+export function documentTitle(value: string) {
+  const title = value.trim();
+  if (!title || title.length > DOCUMENT_TITLE_MAX) return null;
+  return title;
+}
