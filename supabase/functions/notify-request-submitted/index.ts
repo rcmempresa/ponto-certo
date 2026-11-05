@@ -3,7 +3,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2'
 import { z } from 'npm:zod@3.25.76'
 import { sendTemplateEmail } from '../_shared/transactional-email-templates/send-email.ts'
 
-const Body = z.object({ tipo: z.enum(['ferias', 'falta']), id: z.string().uuid() })
+const Body = z.object({ tipo: z.enum(['ferias', 'falta', 'baixa']), id: z.string().uuid() })
 
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
@@ -26,7 +26,7 @@ Deno.serve(async (req) => {
   if (!parsed.success) return json({ error: parsed.error.flatten().fieldErrors }, 400)
   const { tipo, id } = parsed.data
 
-  const table = tipo === 'ferias' ? 'ferias' : 'faltas'
+  const table = tipo === 'ferias' ? 'ferias' : tipo === 'baixa' ? 'baixas_medicas' : 'faltas'
   const { data: row } = await admin.from(table).select('*').eq('id', id).maybeSingle()
   if (!row || row.user_id !== auth.user.id) return json({ error: 'Not found' }, 404)
   if (row.status !== 'pendente') return json({ sent: false, reason: 'not_pending' })
@@ -40,6 +40,16 @@ Deno.serve(async (req) => {
       ? `${pt(row.data_inicio)}${half(row.tipo_inicio)}`
       : `${pt(row.data_inicio)}${half(row.tipo_inicio)} a ${pt(row.data_fim)}${half(row.tipo_fim)}`
     templateData = { tipo, nome, periodo }
+  } else if (tipo === 'baixa') {
+    let anexoUrl: string | undefined
+    const marker = '/faltas_docs/'
+    if (row.comprovativo_url?.includes(marker)) {
+      const path = decodeURIComponent(row.comprovativo_url.split(marker)[1].split('?')[0])
+      const { data: signed } = await admin.storage.from('faltas_docs').createSignedUrl(path, 60 * 60 * 24 * 7)
+      anexoUrl = signed?.signedUrl
+    }
+    const dias = Math.round((Date.parse(row.data_fim) - Date.parse(row.data_inicio)) / 86400000) + 1
+    templateData = { tipo, nome, periodo: `${pt(row.data_inicio)} a ${pt(row.data_fim)}`, detalhe: `${dias} dia${dias > 1 ? 's' : ''}`, motivo: row.observacoes ?? undefined, anexoUrl }
   } else {
     let anexoUrl: string | undefined
     const marker = '/faltas_docs/'

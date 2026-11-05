@@ -107,7 +107,16 @@ export default function AdminDashboard() {
       .gte('data_fim', todayStr);
 
     // Count unique users on vacation
-    const uniqueUsersOnVacation = new Set(onVacation?.map(v => v.user_id) || []);
+    const { data: onSickLeave } = await supabase
+      .from('baixas_medicas')
+      .select('user_id')
+      .eq('status', 'aprovado')
+      .lte('data_inicio', todayStr)
+      .gte('data_fim', todayStr);
+    const uniqueUsersOnVacation = new Set([
+      ...(onVacation?.map(v => v.user_id) || []),
+      ...(onSickLeave?.map(v => v.user_id) || []),
+    ]);
     setOnVacationCount(uniqueUsersOnVacation.size);
 
     // Calculate users not working today (not clocked in and not on vacation)
