@@ -3,7 +3,7 @@ import { Body, Button, Container, Head, Heading, Html, Link, Preview, Text } fro
 import type { TemplateEntry } from './registry.ts'
 
 interface Props {
-  tipo?: 'ferias' | 'falta'
+  tipo?: 'ferias' | 'falta' | 'baixa'
   nome?: string
   periodo?: string
   detalhe?: string
@@ -21,18 +21,19 @@ const RequestSubmittedEmail = ({
   anexoUrl,
   link = 'https://picaponto.nrtechsolucion.pt/admin/aprovacoes',
 }: Props) => {
-  const label = tipo === 'falta' ? 'justificação de falta' : 'pedido de férias'
+  const label = tipo === 'falta' ? 'justificação de falta' : tipo === 'baixa' ? 'baixa médica' : 'pedido de férias'
+  const title = tipo === 'falta' ? 'Nova justificação de falta' : tipo === 'baixa' ? 'Nova baixa médica' : 'Novo pedido de férias'
   return (
     <Html lang="pt" dir="ltr">
       <Head />
       <Preview>{`Novo ${label} de ${nome}`}</Preview>
       <Body style={main}>
         <Container style={container}>
-          <Heading style={h1}>{tipo === 'falta' ? 'Nova justificação de falta' : 'Novo pedido de férias'}</Heading>
-          <Text style={text}><strong>{nome}</strong> submeteu um {label} que aguarda aprovação.</Text>
+          <Heading style={h1}>{title}</Heading>
+          <Text style={text}><strong>{nome}</strong> submeteu {tipo === 'baixa' ? 'uma' : 'um'} {label} que aguarda aprovação.</Text>
           {periodo ? <Text style={text}><strong>Data:</strong> {periodo}</Text> : null}
-          {detalhe ? <Text style={text}><strong>Tipo:</strong> {detalhe}</Text> : null}
-          {motivo ? <Text style={text}><strong>Motivo:</strong> {motivo}</Text> : null}
+          {detalhe ? <Text style={text}><strong>{tipo === 'baixa' ? 'Duração' : 'Tipo'}:</strong> {detalhe}</Text> : null}
+          {motivo ? <Text style={text}><strong>{tipo === 'baixa' ? 'Observações' : 'Motivo'}:</strong> {motivo}</Text> : null}
           {anexoUrl ? (
             <Text style={text}><strong>Anexo:</strong> <Link href={anexoUrl} style={linkStyle}>Abrir comprovativo</Link> (link válido 7 dias)</Text>
           ) : null}
@@ -47,8 +48,8 @@ const RequestSubmittedEmail = ({
 export const template = {
   component: RequestSubmittedEmail,
   subject: (d: Record<string, any>) =>
-    `${d.tipo === 'falta' ? 'Nova justificação de falta' : 'Novo pedido de férias'} — ${d.nome || 'colaborador'}`,
-  displayName: 'Novo pedido de férias / falta',
+    `${d.tipo === 'falta' ? 'Nova justificação de falta' : d.tipo === 'baixa' ? 'Nova baixa médica' : 'Novo pedido de férias'} — ${d.nome || 'colaborador'}`,
+  displayName: 'Novo pedido de férias / falta / baixa',
   to: 'geral@nrtechsolucion.pt',
   previewData: { tipo: 'falta', nome: 'Maria Silva', periodo: '05/11/2026', detalhe: 'Dia inteiro', motivo: 'Consulta médica', anexoUrl: 'https://example.com/anexo.pdf' },
 } satisfies TemplateEntry
