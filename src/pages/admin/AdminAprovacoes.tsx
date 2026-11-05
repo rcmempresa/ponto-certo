@@ -27,6 +27,8 @@ import {
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
 import { supabase } from '@/integrations/supabase/client';
+import { HeartPulse } from 'lucide-react';
+import { AdminBaixasTab } from '@/components/admin/AdminBaixasTab';
 import { useToast } from '@/hooks/use-toast';
 import { format, eachDayOfInterval, isWeekend, isSameDay } from 'date-fns';
 import { pt } from 'date-fns/locale';
@@ -144,6 +146,7 @@ export default function AdminAprovacoes() {
   const { toast } = useToast();
   const [ferias, setFerias] = useState<FeriasRequest[]>([]);
   const [faltas, setFaltas] = useState<FaltaRequest[]>([]);
+  const [pendingBaixas, setPendingBaixas] = useState(0);
   const [pontos, setPontos] = useState<PontoRequest[]>([]);
   const [folgasTrab, setFolgasTrab] = useState<FolgaTrabRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -517,7 +520,7 @@ export default function AdminAprovacoes() {
   const pendingFaltas = faltas.filter((f) => f.status === 'pendente');
   const pendingPontos = pontos.filter((p) => p.status === 'pendente');
   const pendingFolgas = folgasTrab.filter((f) => f.status === 'pendente');
-  const totalPending = pendingFerias.length + pendingFaltas.length + pendingPontos.length + pendingFolgas.length;
+  const totalPending = pendingFerias.length + pendingFaltas.length + pendingPontos.length + pendingFolgas.length + pendingBaixas;
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -638,7 +641,23 @@ export default function AdminAprovacoes() {
               </Badge>
             )}
           </TabsTrigger>
+          <TabsTrigger
+            value="baixas"
+            className="flex-1 sm:flex-none gap-1.5 sm:gap-2 rounded-lg text-xs sm:text-sm data-[state=active]:bg-background data-[state=active]:shadow-sm"
+          >
+            <HeartPulse className="h-4 w-4" />
+            Baixas
+            {pendingBaixas > 0 && (
+              <Badge variant="secondary" className="ml-0.5 h-5 min-w-5 p-0 justify-center bg-warning/20 text-warning text-xs">
+                {pendingBaixas}
+              </Badge>
+            )}
+          </TabsTrigger>
         </TabsList>
+
+        <TabsContent value="baixas" forceMount className="data-[state=inactive]:hidden">
+          <AdminBaixasTab onPendingChange={setPendingBaixas} />
+        </TabsContent>
 
         {/* Férias Tab */}
         <TabsContent value="ferias">

@@ -11,6 +11,7 @@ import ResetPassword from "./pages/ResetPassword";
 import Dashboard from "./pages/Dashboard";
 import Ferias from "./pages/Ferias";
 import Faltas from "./pages/Faltas";
+import BaixasMedicas from "./pages/BaixasMedicas";
 import HorasExtra from "./pages/HorasExtra";
 import FolgasTrabalhadas from "./pages/FolgasTrabalhadas";
 import Documentos from "./pages/Documentos";
@@ -50,6 +51,7 @@ const App = () => (
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/ferias" element={<Ferias />} />
               <Route path="/faltas" element={<Faltas />} />
+              <Route path="/baixas" element={<BaixasMedicas />} />
               <Route path="/horas-extra" element={<HorasExtra />} />
               <Route path="/folgas-trabalhadas" element={<FolgasTrabalhadas />} />
               <Route path="/documentos" element={<Documentos />} />

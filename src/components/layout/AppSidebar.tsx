@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { BellRing, Clock, Calendar, FileText, FolderOpen, Users, CheckSquare, BarChart3, LogOut, ArrowLeftRight, Timer, ClipboardList, CalendarCheck } from 'lucide-react';
+import { BellRing, Clock, Calendar, FileText, FolderOpen, Users, CheckSquare, BarChart3, LogOut, ArrowLeftRight, Timer, ClipboardList, CalendarCheck, HeartPulse } from 'lucide-react';
 import { NavLink } from '@/components/NavLink';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -22,6 +22,7 @@ const userMenuItems = [
   { title: 'Dashboard', url: '/dashboard', icon: Clock },
   { title: 'Férias', url: '/ferias', icon: Calendar },
   { title: 'Faltas', url: '/faltas', icon: FileText },
+  { title: 'Baixas médicas', url: '/baixas', icon: HeartPulse },
   { title: 'Horas Extra', url: '/horas-extra', icon: Timer },
   { title: 'Folgas e Feriados', url: '/folgas-trabalhadas', icon: CalendarCheck },
   { title: 'Documentos', url: '/documentos', icon: FolderOpen },
