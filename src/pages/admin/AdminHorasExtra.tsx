@@ -59,8 +59,8 @@ interface HorasExtraRecord {
   id: string;
   user_id: string;
   data: string;
-  hora_inicio: string;
-  hora_fim: string;
+  hora_inicio: string | null;
+  hora_fim: string | null;
   minutos_extra: number;
   motivo: string | null;
   status: string;
@@ -219,8 +219,8 @@ export default function AdminHorasExtra() {
     setSelectedRecord(record);
     setEditData({
       data: record.data,
-      hora_inicio: record.hora_inicio.slice(0, 5),
-      hora_fim: record.hora_fim.slice(0, 5),
+      hora_inicio: record.hora_inicio?.slice(0, 5) ?? '',
+      hora_fim: record.hora_fim?.slice(0, 5) ?? '',
       motivo: record.motivo || '',
     });
     setEditDialogOpen(true);
@@ -228,19 +228,25 @@ export default function AdminHorasExtra() {
 
   const handleSaveEdit = async () => {
     if (!selectedRecord) return;
+    if (Boolean(editData.hora_inicio) !== Boolean(editData.hora_fim)) {
+      toast({ title: 'Horário incompleto', description: 'Indique ambas as horas ou deixe ambas vazias.', variant: 'destructive' });
+      return;
+    }
     setProcessingId(selectedRecord.id);
     
     // Recalculate overtime minutes based on new times
     const selectedDateObj = new Date(editData.data + 'T12:00:00');
-    const newMinutosExtra = calculateOvertimeMinutes(selectedDateObj, editData.hora_inicio, editData.hora_fim);
+    const newMinutosExtra = editData.hora_inicio && editData.hora_fim
+      ? calculateOvertimeMinutes(selectedDateObj, editData.hora_inicio, editData.hora_fim)
+      : selectedRecord.minutos_extra;
     const newTipoPeriodo = getOvertimeType(selectedDateObj);
     
     const { error } = await supabase
       .from('horas_extra')
       .update({
         data: editData.data,
-        hora_inicio: editData.hora_inicio,
-        hora_fim: editData.hora_fim,
+        hora_inicio: editData.hora_inicio || null,
+        hora_fim: editData.hora_fim || null,
         minutos_extra: newMinutosExtra,
         tipo_periodo: newTipoPeriodo,
         motivo: editData.motivo || null,
@@ -382,7 +388,7 @@ export default function AdminHorasExtra() {
                     <div className="flex items-center gap-2 ml-4">
                       {getTipoBadge(record.tipo_periodo)}
                       <span className="text-sm">
-                        {record.hora_inicio.slice(0, 5)} - {record.hora_fim.slice(0, 5)}
+                        {record.hora_inicio && record.hora_fim ? `${record.hora_inicio.slice(0, 5)} - ${record.hora_fim.slice(0, 5)}` : 'Não indicado'}
                       </span>
                       <span className="text-sm font-semibold text-primary">
                         {formatOvertimeMinutes(record.minutos_extra)}
@@ -525,7 +531,7 @@ export default function AdminHorasExtra() {
                     </TableCell>
                     <TableCell>{getTipoBadge(record.tipo_periodo)}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {record.hora_inicio.slice(0, 5)} - {record.hora_fim.slice(0, 5)}
+                      {record.hora_inicio && record.hora_fim ? `${record.hora_inicio.slice(0, 5)} - ${record.hora_fim.slice(0, 5)}` : 'Não indicado'}
                     </TableCell>
                     <TableCell className="font-semibold">
                       {formatOvertimeMinutes(record.minutos_extra)}

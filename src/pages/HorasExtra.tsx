@@ -37,8 +37,8 @@ import {
 interface HorasExtraRecord {
   id: string;
   data: string;
-  hora_inicio: string;
-  hora_fim: string;
+  hora_inicio: string | null;
+  hora_fim: string | null;
   minutos_extra: number;
   motivo: string | null;
   status: string;
@@ -320,7 +320,7 @@ export default function HorasExtra() {
                     </TableCell>
                     <TableCell>{getTipoBadge(record.tipo_periodo)}</TableCell>
                     <TableCell className="text-muted-foreground">
-                      {record.hora_inicio.slice(0, 5)} - {record.hora_fim.slice(0, 5)}
+                      {record.hora_inicio && record.hora_fim ? `${record.hora_inicio.slice(0, 5)} - ${record.hora_fim.slice(0, 5)}` : 'Não indicado'}
                     </TableCell>
                     <TableCell className="font-semibold">
                       {formatOvertimeMinutes(record.minutos_extra)}

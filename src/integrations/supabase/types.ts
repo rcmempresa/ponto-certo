@@ -292,8 +292,8 @@ export type Database = {
         Row: {
           created_at: string
           data: string
-          hora_fim: string
-          hora_inicio: string
+          hora_fim: string | null
+          hora_inicio: string | null
           id: string
           minutos_extra: number
           motivo: string | null
@@ -305,8 +305,8 @@ export type Database = {
         Insert: {
           created_at?: string
           data: string
-          hora_fim: string
-          hora_inicio: string
+          hora_fim?: string | null
+          hora_inicio?: string | null
           id?: string
           minutos_extra?: number
           motivo?: string | null
@@ -318,8 +318,8 @@ export type Database = {
         Update: {
           created_at?: string
           data?: string
-          hora_fim?: string
-          hora_inicio?: string
+          hora_fim?: string | null
+          hora_inicio?: string | null
           id?: string
           minutos_extra?: number
           motivo?: string | null

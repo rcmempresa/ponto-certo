@@ -1,5 +1,5 @@
 # Documentos
-- [ ] Acrescentar seis ações de criação e consulta de pedidos ao agente e verificar validação e chamadas autenticadas.
+- [x] Acrescentar seis ações de criação e consulta de pedidos ao agente; 22 testes aprovados, seis chamadas autenticadas verificadas e pedido de horas extra sem horário confirmado no painel.
 - [x] Completar e verificar criação, consulta, edição e eliminação de categorias e subcategorias em Gerir pastas; fluxo autenticado e nove testes aprovados.
 - [x] Adaptar ponto-empregado ao contrato pedido com AGENT_SECRET e user_id na presença da equipa.
 - [x] Configurar AGENT_SECRET, disponibilizar a função e passar 11 testes; verificar consultas autenticadas com dados reais e rejeições de escrita sem alterar registos dos colaboradores.

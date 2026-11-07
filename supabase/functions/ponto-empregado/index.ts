@@ -1,6 +1,7 @@
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders as sdkCorsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { requestSchema } from './schema.ts';
+import { recentRequestCutoff, requestInsert, requestTables } from './requests.ts';
 import { addDay, dailySummary, dayBoundary, getAgentSecret, localDay, pairedHours, teamPresence, validSecret } from './rules.ts';
 
 const corsHeaders = { ...sdkCorsHeaders, 'Access-Control-Allow-Headers': `${sdkCorsHeaders['Access-Control-Allow-Headers']}, x-agent-secret` };
@@ -48,6 +49,18 @@ Deno.serve(async req => {
     }
   }
   try {
+    if ('params' in input && input.params && 'user_id' in input.params && ['criar_ferias', 'criar_falta', 'criar_horas_extra', 'criar_folga_trabalhada', 'ver_saldo_ferias', 'meus_pedidos'].includes(input.action)) {
+      const { data: profile, error } = await db.from('profiles').select('id,saldo_ferias,nome').eq('id', input.params.user_id).maybeSingle();
+      if (error) throw error;
+      if (!profile) return response({ error: 'Utilizador não encontrado' }, 404);
+      if (input.action === 'ver_saldo_ferias') return response({ data: { saldo_ferias: Number(profile.saldo_ferias) } });
+      const insert = requestInsert(input);
+      if (insert) {
+        const { data, error: insertError } = await db.from(insert.table).insert(insert.values).select(insert.select).single();
+        if (insertError) throw insertError;
+        return response({ data });
+      }
+    }
     switch (input.action) {
       case 'registar_ponto': {
         const { user_id, tipo, localizacao } = input.params;
@@ -69,14 +82,21 @@ Deno.serve(async req => {
         const { user_id, date_from, date_to } = input.params;
         return response({ data: dailySummary(await punches(date_from, date_to, user_id), date_from, date_to) });
       }
-      case 'pedidos_pendentes': {
+      case 'pedidos_pendentes':
+      case 'meus_pedidos': {
         const team = await profiles();
         const names = new Map(team.map(person => [person.id, person.nome]));
-        const tables = ['ferias', 'faltas', 'horas_extra', 'folgas_trabalhadas'] as const;
-        const entries = await Promise.all(tables.map(async table => {
+        const cutoff = recentRequestCutoff();
+        const entries = await Promise.all(requestTables.map(async table => {
           const rows: Record<string, unknown>[] = [];
           for (let offset = 0; ; offset += 1000) {
-            const { data, error } = await db.from(table).select('*').eq('status', 'pendente').order('created_at').order('id').range(offset, offset + 999);
+            let query = db.from(table).select('*');
+            if (input.action === 'meus_pedidos') {
+              query = query.eq('user_id', input.params.user_id).or(`status.eq.pendente,created_at.gte.${cutoff}`);
+            } else {
+              query = query.eq('status', 'pendente');
+            }
+            const { data, error } = await query.order('created_at', { ascending: input.action === 'pedidos_pendentes' }).order('id').range(offset, offset + 999);
             if (error) throw error;
             rows.push(...(data ?? []).map(row => ({ ...row, name: names.get(row.user_id) ?? '' })));
             if (!data || data.length < 1000) return [table, rows];
@@ -96,6 +116,8 @@ Deno.serve(async req => {
     if (problem.code === 'P0002') return response({ error: problem.message }, 404);
     if (problem.code === 'P0001') return response({ error: problem.message }, 409);
     if (problem.code === '22023') return response({ error: problem.message }, 400);
+    if (problem.code === '23503') return response({ error: 'Utilizador não encontrado' }, 404);
+    if (problem.code === '23514' || problem.code === '22003') return response({ error: 'Valores inválidos para o pedido' }, 400);
     return response({ error: 'Não foi possível processar o pedido' }, 500);
   }
 });

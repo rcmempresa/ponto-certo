@@ -1,9 +1,51 @@
 import { describe, expect, it } from 'vitest';
 import { dailySummary, dayBoundary, getAgentSecret, pairedHours, presence, teamPresence, validSecret } from '../../supabase/functions/ponto-empregado/rules';
 import { requestSchema } from '../../supabase/functions/ponto-empregado/schema';
+import { recentRequestCutoff, requestInsert } from '../../supabase/functions/ponto-empregado/requests';
 
 const punch = (tipo: 'entrada' | 'saida', timestamp: string) => ({ tipo, timestamp });
 describe('ponto-empregado contract', () => {
+  const user_id = 'd40a054e-113c-4f57-b5bd-8bb74f6d198f';
+  it.each([
+    ['criar_ferias', { user_id, data_inicio: '2026-11-07', data_fim: '2026-11-08' }, 'ferias'],
+    ['criar_falta', { user_id, data: '2026-11-07', motivo: 'Consulta' }, 'faltas'],
+    ['criar_horas_extra', { user_id, data: '2026-11-07', minutos_extra: 1 }, 'horas_extra'],
+    ['criar_folga_trabalhada', { user_id, data: '2026-11-07', horas: 4.5, tipo_dia: 'folga' }, 'folgas_trabalhadas'],
+  ])('creates %s with pending status', (action, params, table) => {
+    const input = requestSchema.parse({ action, params });
+    expect(requestInsert(input)?.table).toBe(table);
+    expect(requestInsert(input)?.values.status).toBe('pendente');
+  });
+  it('limits absence reasons to 500 characters', () => {
+    const parse = (motivo: string) => requestSchema.safeParse({ action: 'criar_falta', params: { user_id, data: '2026-11-07', motivo } }).success;
+    expect(parse('a'.repeat(500))).toBe(true);
+    expect(parse('a'.repeat(501))).toBe(false);
+  });
+  it('requires at least one integer overtime minute without invented times', () => {
+    const parse = (minutos_extra: number) => requestSchema.safeParse({ action: 'criar_horas_extra', params: { user_id, data: '2026-11-07', minutos_extra } });
+    expect(parse(0).success).toBe(false);
+    expect(parse(1.5).success).toBe(false);
+    const input = parse(1);
+    expect(input.success).toBe(true);
+    if (input.success) expect(requestInsert(input.data)?.values).toMatchObject({ minutos_extra: 1, hora_inicio: null, hora_fim: null });
+  });
+  it('accepts only feriado and folga for worked days off', () => {
+    const parse = (tipo_dia: string) => requestSchema.safeParse({ action: 'criar_folga_trabalhada', params: { user_id, data: '2026-11-07', horas: 8, tipo_dia } }).success;
+    expect(parse('feriado')).toBe(true);
+    expect(parse('folga')).toBe(true);
+    expect(parse('outro')).toBe(false);
+  });
+  it('rejects reversed vacation ranges and invalid dates', () => {
+    expect(requestSchema.safeParse({ action: 'criar_ferias', params: { user_id, data_inicio: '2026-11-08', data_fim: '2026-11-07' } }).success).toBe(false);
+    expect(requestSchema.safeParse({ action: 'criar_falta', params: { user_id, data: '2026-02-30', motivo: 'Consulta' } }).success).toBe(false);
+  });
+  it('uses a 30-day cutoff for recent requests', () => {
+    expect(recentRequestCutoff(new Date('2026-11-07T10:10:00Z'))).toBe('2026-10-08T10:10:00.000Z');
+  });
+  it.each(['ver_saldo_ferias', 'meus_pedidos'])('requires a valid user_id for %s', action => {
+    expect(requestSchema.safeParse({ action, params: { user_id } }).success).toBe(true);
+    expect(requestSchema.safeParse({ action, params: { user_id: 'invalid' } }).success).toBe(false);
+  });
   it('authenticates against AGENT_SECRET without falling back to PONTO_SECRET', async () => {
     const env: Record<string, string> = { AGENT_SECRET: 'new-test-only-value', PONTO_SECRET: 'old-test-only-value' };
     const secret = getAgentSecret(name => env[name]);

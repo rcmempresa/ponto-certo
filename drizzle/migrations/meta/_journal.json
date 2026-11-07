@@ -43,6 +43,13 @@
       "when": 1793870148110,
       "tag": "0005_baixas_medicas",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794046411598,
+      "tag": "0006_allow_duration_only_agent_overtime",
+      "breakpoints": true
     }
   ]
 }
