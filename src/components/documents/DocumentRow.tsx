@@ -1,9 +1,8 @@
 import { useState } from 'react';
-import { MoreVertical, Pencil, FolderInput, Users, Eye, EyeOff, Trash2, Loader2 } from 'lucide-react';
+import { MoreVertical, Pencil, FolderInput, Users, Eye, EyeOff, Trash2, Loader2, FileText, FileSpreadsheet, ExternalLink } from 'lucide-react';
 import { format } from 'date-fns';
 import { pt } from 'date-fns/locale';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -53,27 +52,20 @@ export function DocumentRow(p: Props) {
   const valid = documentTitle(title);
 
   return (
-    <div className="flex min-w-0 items-center gap-3 border-b px-4 py-3 last:border-b-0 hover:bg-muted/20">
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-muted text-lg">{p.icon}</div>
+    <div className="grid min-w-0 grid-cols-[minmax(0,1fr)_auto] items-start gap-3 border-b px-3 py-4 hover:bg-muted/20 sm:px-4">
+      <div className="flex min-w-0 items-start gap-3">
+      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md bg-muted text-muted-foreground">{doc.ficheiro_url.toLowerCase().includes('.xls') ? <FileSpreadsheet className="h-5 w-5" /> : <FileText className="h-5 w-5" />}</div>
       <div className="min-w-0 flex-1">
-        <div className="flex min-w-0 items-center gap-1">
-          <p className="min-w-0 break-words font-medium">{doc.titulo}</p>
-          <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={() => open('rename')} aria-label={`Mudar nome de ${doc.titulo}`} title="Mudar nome">
-            <Pencil className="h-3.5 w-3.5" />
-          </Button>
+        <p className="min-w-0 break-words text-sm font-medium leading-6">{doc.titulo}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+          <span>{format(new Date(doc.created_at), 'd MMM yyyy', { locale: pt })}</span>
+          <span className="inline-flex items-center gap-1">{doc.visibilidade_geral ? <><Eye className="h-3 w-3" />Público</> : <><EyeOff className="h-3 w-3" />Restrito{p.permissionCount > 0 ? ` · ${p.permissionCount}` : ''}</>}</span>
         </div>
-        <div className="mt-1 flex flex-wrap items-center gap-2">
-          <DocumentExpiryBadge validade={doc.validade} avisoDias={doc.aviso_dias} />
-          <Badge variant={doc.visibilidade_geral ? 'secondary' : 'outline'} className="gap-1 text-xs">
-            {doc.visibilidade_geral ? <><Eye className="h-3 w-3" />Público</> : <><EyeOff className="h-3 w-3" />Restrito ({p.permissionCount})</>}
-          </Badge>
-          <span className="text-xs text-muted-foreground">
-            {format(new Date(doc.created_at), 'd MMM yyyy', { locale: pt })}{p.uploaderName ? ` · ${p.uploaderName}` : ''}
-          </span>
-        </div>
+        {doc.validade && <div className="mt-2"><DocumentExpiryBadge validade={doc.validade} avisoDias={doc.aviso_dias} /></div>}
+      </div>
       </div>
       <div className="flex shrink-0 items-center gap-1">
-        <Button variant="outline" size="sm" asChild><a href={doc.ficheiro_url} target="_blank" rel="noopener noreferrer">Ver</a></Button>
+        <Button variant="ghost" size="icon" asChild><a href={doc.ficheiro_url} target="_blank" rel="noopener noreferrer" aria-label={`Abrir ${doc.titulo}`} title="Abrir documento"><ExternalLink className="h-4 w-4" /></a></Button>
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="h-9 w-9" aria-label={`Ações de ${doc.titulo}`}><MoreVertical className="h-4 w-4" /></Button>
