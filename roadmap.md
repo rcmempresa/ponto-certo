@@ -19,3 +19,8 @@
 - [x] Criar tarefas de gerente com início, lembretes de 2/7/15/30 dias e conclusão por email; criação, persistência, conclusão e eliminação verificadas.
 - [x] Ativar verificação diária às 09:17 UTC; callback autenticado e 17 testes verificados.
 - [ ] Confirmar envio dos emails de lembrete e conclusão: bloqueado por domínio remetente não verificado (NS ausentes); corrigir configuração em Mais → Emails.
+
+# Tarefas atribuídas
+- [ ] Restringir criação ao gerente e consulta/conclusão ao responsável.
+- [ ] Acrescentar seleção de responsável e acesso dos funcionários.
+- [ ] Enviar avisos separados para gerente e responsável; testar permissões e fluxo.

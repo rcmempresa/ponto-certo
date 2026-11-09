@@ -432,6 +432,7 @@ export type Database = {
       tarefas: {
         Row: {
           concluida_em: string | null
+          concluida_por: string | null
           conclusao_email_estado: string
           created_at: string
           created_by: string
@@ -440,10 +441,12 @@ export type Database = {
           id: string
           lembretes_dias: number[]
           lembretes_processados: number[]
+          responsavel_id: string | null
           titulo: string
         }
         Insert: {
           concluida_em?: string | null
+          concluida_por?: string | null
           conclusao_email_estado?: string
           created_at?: string
           created_by: string
@@ -452,10 +455,12 @@ export type Database = {
           id?: string
           lembretes_dias?: number[]
           lembretes_processados?: number[]
+          responsavel_id?: string | null
           titulo: string
         }
         Update: {
           concluida_em?: string | null
+          concluida_por?: string | null
           conclusao_email_estado?: string
           created_at?: string
           created_by?: string
@@ -464,12 +469,27 @@ export type Database = {
           id?: string
           lembretes_dias?: number[]
           lembretes_processados?: number[]
+          responsavel_id?: string | null
           titulo?: string
         }
         Relationships: [
           {
+            foreignKeyName: "tarefas_concluida_por_fkey"
+            columns: ["concluida_por"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
             foreignKeyName: "tarefas_created_by_fkey"
             columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "tarefas_responsavel_id_fkey"
+            columns: ["responsavel_id"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]

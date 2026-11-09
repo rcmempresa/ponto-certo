@@ -57,6 +57,13 @@
       "when": 1794247134155,
       "tag": "0007_manager_tasks",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794247865451,
+      "tag": "0008_assign_tasks_to_employees",
+      "breakpoints": true
     }
   ]
 }

@@ -49,6 +49,7 @@ const App = () => (
               }
             >
               {/* User Routes */}
+              <Route path="/tarefas" element={<AdminTarefas />} />
               <Route path="/dashboard" element={<Dashboard />} />
               <Route path="/ferias" element={<Ferias />} />
               <Route path="/faltas" element={<Faltas />} />

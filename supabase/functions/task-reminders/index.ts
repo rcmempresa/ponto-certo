@@ -21,8 +21,10 @@ Deno.serve(async req => {
  let sent=0;
  // One event for one specific task and the expected manager recipient per send.
  for(const task of tasks ?? []) {
+  const {data:employee,error:employeeError}=await client.from('profiles').select('email').eq('id',task.responsavel_id).maybeSingle();
+  if(employeeError) throw employeeError;
   if(task.concluida_em) {
-   const result=await sendTaskEvent(task);
+   const result=await sendTaskEvent(task,employee?.email ?? null);
    const {error:saveError}=await client.from('tarefas').update({conclusao_email_estado:result.sent?'enviado':'suprimido'}).eq('id',task.id);
    if(saveError) throw saveError;
    if(result.sent) sent++;
@@ -33,7 +35,7 @@ Deno.serve(async req => {
   // Recheck completion before sending a reminder.
   const {data:current,error:readError}=await client.from('tarefas').select('concluida_em').eq('id',task.id).single();
   if(readError || current.concluida_em) continue;
-  const result=await sendTaskEvent(task,days);
+  const result=await sendTaskEvent(task,employee?.email ?? null,days);
   const processed=[...new Set([...task.lembretes_processados,...task.lembretes_dias.filter((d:number)=>d<=days)])];
   const {error:saveError}=await client.from('tarefas').update({lembretes_processados:processed}).eq('id',task.id);
   if(saveError) throw saveError;

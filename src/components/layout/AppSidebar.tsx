@@ -19,6 +19,7 @@ import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 
 const userMenuItems = [
+  { title: 'Tarefas', url: '/tarefas', icon: CheckSquare },
   { title: 'Dashboard', url: '/dashboard', icon: Clock },
   { title: 'Férias', url: '/ferias', icon: Calendar },
   { title: 'Faltas', url: '/faltas', icon: FileText },
