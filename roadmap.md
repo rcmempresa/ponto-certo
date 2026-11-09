@@ -21,6 +21,7 @@
 - [ ] Confirmar envio dos emails de lembrete e conclusão: bloqueado por domínio remetente não verificado (NS ausentes); corrigir configuração em Mais → Emails.
 
 # Tarefas atribuídas
-- [ ] Restringir criação ao gerente e consulta/conclusão ao responsável.
-- [ ] Acrescentar seleção de responsável e acesso dos funcionários.
-- [ ] Enviar avisos separados para gerente e responsável; testar permissões e fluxo.
+- [x] Restringir criação ao gerente e consulta/conclusão ao responsável; criação recusada com 403 para funcionário.
+- [x] Acrescentar seleção de responsável e acesso dos funcionários; criação pelo gerente e conclusão/persistência pelo Rodrigo Teste verificadas.
+- [x] Preparar avisos separados e idempotentes para gerente e responsável; 12 testes aprovados.
+- [ ] Confirmar entrega para ambos: domínio remetente continua sem verificação.
