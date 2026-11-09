@@ -24,6 +24,7 @@ import AdminDocumentos from "./pages/admin/AdminDocumentos";
 import AdminHorasExtra from "./pages/admin/AdminHorasExtra";
 import AdminFolgasTrabalhadas from "./pages/admin/AdminFolgasTrabalhadas";
 import AdminFerias from "./pages/admin/AdminFerias";
+import AdminTarefas from "./pages/admin/AdminTarefas";
 import AdminRelatorios from "./pages/admin/AdminRelatorios";
 import NotFound from "./pages/NotFound";
 
@@ -57,6 +58,7 @@ const App = () => (
               <Route path="/documentos" element={<Documentos />} />
               
               {/* Admin Routes */}
+              <Route path="/admin/tarefas" element={<ProtectedRoute requireAdmin><AdminTarefas /></ProtectedRoute>} />
               <Route
                 path="/admin"
                 element={

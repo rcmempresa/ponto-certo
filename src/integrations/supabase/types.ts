@@ -429,6 +429,53 @@ export type Database = {
         }
         Relationships: []
       }
+      tarefas: {
+        Row: {
+          concluida_em: string | null
+          conclusao_email_estado: string
+          created_at: string
+          created_by: string
+          data_inicio: string
+          descricao: string
+          id: string
+          lembretes_dias: number[]
+          lembretes_processados: number[]
+          titulo: string
+        }
+        Insert: {
+          concluida_em?: string | null
+          conclusao_email_estado?: string
+          created_at?: string
+          created_by: string
+          data_inicio: string
+          descricao?: string
+          id?: string
+          lembretes_dias?: number[]
+          lembretes_processados?: number[]
+          titulo: string
+        }
+        Update: {
+          concluida_em?: string | null
+          conclusao_email_estado?: string
+          created_at?: string
+          created_by?: string
+          data_inicio?: string
+          descricao?: string
+          id?: string
+          lembretes_dias?: number[]
+          lembretes_processados?: number[]
+          titulo?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tarefas_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string

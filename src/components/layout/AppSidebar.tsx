@@ -38,6 +38,7 @@ const adminMenuItems = [
   { title: 'Relatórios', url: '/admin/relatorios', icon: ClipboardList },
   { title: 'Aprovações', url: '/admin/aprovacoes', icon: CheckSquare },
   { title: 'Documentos', url: '/admin/documentos', icon: FolderOpen },
+  { title: 'Tarefas', url: '/admin/tarefas', icon: CheckSquare },
   { title: 'Avisos', url: '/admin/avisos', icon: BellRing },
 ];
 

@@ -11,7 +11,8 @@ import {
   TrendingUp,
   CalendarDays,
   Timer,
-  Euro
+  Euro,
+  HeartPulse
 } from 'lucide-react';
 
 const RATE_PER_HOUR = 8.16;
@@ -32,6 +33,7 @@ import { pt } from 'date-fns/locale';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { calculateWorkHours } from '@/lib/workHoursCalculator';
 import { exportToPDF, exportToExcel, ReportData } from '@/lib/exportUtils';
+import { sickLeaveMonthDays } from '@/lib/sickLeaveReport';
 import { isHoliday } from '@/lib/holidays';
 
 interface Profile {
@@ -68,12 +70,16 @@ interface FaltaRecord {
   status: string;
 }
 
+interface BaixaRecord {
+  id: string; user_id: string; data_inicio: string; data_fim: string; status: string; observacoes: string | null;
+}
+
 interface HorasExtraRecord {
   id: string;
   user_id: string;
   data: string;
-  hora_inicio: string;
-  hora_fim: string;
+  hora_inicio: string | null;
+  hora_fim: string | null;
   minutos_extra: number;
   status: string;
 }
@@ -94,6 +100,7 @@ interface EmployeeMonthlyReport {
   horasTrabalhadas: number;
   diasFerias: number;
   diasFalta: number;
+  diasBaixa: number;
   horasExtra: number;
   folgasTrabalhadas: number;
   saldoFerias: number;
@@ -103,6 +110,7 @@ export default function AdminRelatorios() {
   const [profiles, setProfiles] = useState<Profile[]>([]);
   const [pontoRecords, setPontoRecords] = useState<PontoRecord[]>([]);
   const [feriasRecords, setFeriasRecords] = useState<FeriasRecord[]>([]);
+  const [baixasRecords, setBaixasRecords] = useState<BaixaRecord[]>([]);
   const [faltasRecords, setFaltasRecords] = useState<FaltaRecord[]>([]);
   const [horasExtraRecords, setHorasExtraRecords] = useState<HorasExtraRecord[]>([]);
   const [folgasTrabRecords, setFolgasTrabRecords] = useState<FolgaTrabalhadaRecord[]>([]);
@@ -137,7 +145,7 @@ export default function AdminRelatorios() {
     const monthEnd = endOfMonth(monthStart);
 
     // Fetch all data in parallel
-    const [profilesRes, pontoRes, feriasRes, faltasRes, horasExtraRes, folgasTrabRes] = await Promise.all([
+    const [profilesRes, pontoRes, feriasRes, faltasRes, horasExtraRes, folgasTrabRes, baixasRes] = await Promise.all([
       supabase.from('profiles').select('*'),
       supabase
         .from('ponto')
@@ -168,6 +176,8 @@ export default function AdminRelatorios() {
         .eq('status', 'aprovado')
         .gte('data', format(monthStart, 'yyyy-MM-dd'))
         .lte('data', format(monthEnd, 'yyyy-MM-dd')),
+      supabase.from('baixas_medicas').select('*').eq('status', 'aprovado')
+        .lte('data_inicio', format(monthEnd, 'yyyy-MM-dd')).gte('data_fim', format(monthStart, 'yyyy-MM-dd')),
     ]);
 
     if (profilesRes.data) {
@@ -177,6 +187,7 @@ export default function AdminRelatorios() {
         setEmployeesInitialized(true);
       }
     }
+    setBaixasRecords(baixasRes.data ?? []);
     if (pontoRes.data) setPontoRecords(pontoRes.data as PontoRecord[]);
     if (feriasRes.data) setFeriasRecords(feriasRes.data);
     if (faltasRes.data) setFaltasRecords(faltasRes.data);
@@ -279,12 +290,13 @@ export default function AdminRelatorios() {
           horasTrabalhadas,
           diasFerias,
           diasFalta,
+          diasBaixa: sickLeaveMonthDays(baixasRecords, profile.id, selectedMonth),
           horasExtra,
           folgasTrabalhadas,
           saldoFerias: profile.saldo_ferias,
         } as EmployeeMonthlyReport;
       });
-  }, [profiles, pontoRecords, feriasRecords, faltasRecords, horasExtraRecords, folgasTrabRecords, selectedMonth, selectedEmployees]);
+  }, [profiles, pontoRecords, feriasRecords, baixasRecords, faltasRecords, horasExtraRecords, folgasTrabRecords, selectedMonth, selectedEmployees]);
 
   // Summary totals
   const summary = useMemo(() => {
@@ -295,6 +307,7 @@ export default function AdminRelatorios() {
       totalHorasTrabalhadas: monthlyReports.reduce((acc, r) => acc + r.horasTrabalhadas, 0),
       totalDiasFerias: monthlyReports.reduce((acc, r) => acc + r.diasFerias, 0),
       totalDiasFalta: monthlyReports.reduce((acc, r) => acc + r.diasFalta, 0),
+      totalDiasBaixa: monthlyReports.reduce((acc, r) => acc + r.diasBaixa, 0),
       totalHorasExtra,
       totalFolgasTrabalhadas,
       totalValorPagar: (totalHorasExtra + totalFolgasTrabalhadas) * RATE_PER_HOUR,
@@ -332,6 +345,12 @@ export default function AdminRelatorios() {
       });
   }, [faltasRecords, profiles, selectedEmployees]);
 
+  const medicalDetails = baixasRecords.filter(b => selectedEmployees.includes(b.user_id)).map(b => ({
+    nome: profiles.find(p => p.id === b.user_id)?.nome || 'Desconhecido',
+    inicio: format(parseISO(b.data_inicio), 'dd/MM/yyyy'), fim: format(parseISO(b.data_fim), 'dd/MM/yyyy'),
+    dias: sickLeaveMonthDays([b], b.user_id, selectedMonth), observacoes: b.observacoes || '-',
+  }));
+
   const allSelected = profiles.length > 0 && selectedEmployees.length === profiles.length;
   const employeeLabel = allSelected
     ? 'Todos os colaboradores'
@@ -351,7 +370,7 @@ export default function AdminRelatorios() {
   const exportSubtitle = (monthLabel: string) =>
     `${monthLabel} — ${employeeLabel}`;
 
-  const handleExportPDF = (type: 'resumo' | 'ferias' | 'faltas') => {
+  const handleExportPDF = (type: 'resumo' | 'ferias' | 'faltas' | 'baixas') => {
     const monthLabel = monthOptions.find(m => m.value === selectedMonth)?.label || selectedMonth;
     
     let reportData: ReportData;
@@ -360,7 +379,7 @@ export default function AdminRelatorios() {
       reportData = {
         title: 'Relatório Mensal de Horas e Presenças',
         subtitle: exportSubtitle(monthLabel),
-        headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Valor HE', 'Folgas/Feriados', 'Valor F/F', 'Total a Pagar'],
+        headers: ['Colaborador', 'Cargo', 'Dias Trab.', 'Horas Trab.', 'Dias Férias', 'Dias Falta', 'Dias Baixa', 'Horas Extra', 'Valor HE', 'Folgas/Feriados', 'Valor F/F', 'Total a Pagar'],
         rows: [
           ...monthlyReports.map(r => [
             r.nome,
@@ -369,6 +388,7 @@ export default function AdminRelatorios() {
             r.horasTrabalhadas,
             Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
             r.diasFalta,
+            r.diasBaixa,
             r.horasExtra,
             formatEuros(r.horasExtra),
             Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
@@ -381,6 +401,7 @@ export default function AdminRelatorios() {
             summary.totalHorasTrabalhadas,
             Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ','),
             summary.totalDiasFalta,
+            summary.totalDiasBaixa,
             summary.totalHorasExtra,
             formatEuros(summary.totalHorasExtra),
             Number.isInteger(summary.totalFolgasTrabalhadas) ? `${summary.totalFolgasTrabalhadas}h` : `${summary.totalFolgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
@@ -388,6 +409,12 @@ export default function AdminRelatorios() {
             formatEuros(summary.totalHorasExtra + summary.totalFolgasTrabalhadas),
           ],
         ],
+      };
+    } else if (type === 'baixas') {
+      reportData = {
+        title: 'Relatório de Baixas Médicas', subtitle: exportSubtitle(monthLabel),
+        headers: ['Colaborador', 'Data Início', 'Data Fim', 'Dias no Mês', 'Observações'],
+        rows: medicalDetails.map(b => [b.nome, b.inicio, b.fim, b.dias, b.observacoes]),
       };
     } else if (type === 'ferias') {
       reportData = {
@@ -408,7 +435,7 @@ export default function AdminRelatorios() {
     exportToPDF(reportData, `relatorio-${type}-${selectedMonth}`);
   };
 
-  const handleExportExcel = (type: 'resumo' | 'ferias' | 'faltas') => {
+  const handleExportExcel = (type: 'resumo' | 'ferias' | 'faltas' | 'baixas') => {
     const monthLabel = monthOptions.find(m => m.value === selectedMonth)?.label || selectedMonth;
     
     let reportData: ReportData;
@@ -416,7 +443,7 @@ export default function AdminRelatorios() {
     if (type === 'resumo') {
       reportData = {
         title: 'Relatório Mensal',
-        headers: ['Colaborador', 'Cargo', 'Dias Trabalhados', 'Horas Trabalhadas', 'Dias Férias', 'Dias Falta', 'Horas Extra', 'Valor Horas Extra (€)', 'Folgas e Feriados', 'Valor Folgas/Feriados (€)', 'Total a Pagar (€)'],
+        headers: ['Colaborador', 'Cargo', 'Dias Trabalhados', 'Horas Trabalhadas', 'Dias Férias', 'Dias Falta', 'Dias Baixa', 'Horas Extra', 'Valor Horas Extra (€)', 'Folgas e Feriados', 'Valor Folgas/Feriados (€)', 'Total a Pagar (€)'],
         rows: [
           ...monthlyReports.map(r => [
             r.nome,
@@ -425,6 +452,7 @@ export default function AdminRelatorios() {
             r.horasTrabalhadas,
             Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
             r.diasFalta,
+            r.diasBaixa,
             r.horasExtra,
             formatEuros(r.horasExtra),
             Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
@@ -437,6 +465,7 @@ export default function AdminRelatorios() {
             summary.totalHorasTrabalhadas,
             Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ','),
             summary.totalDiasFalta,
+            summary.totalDiasBaixa,
             summary.totalHorasExtra,
             formatEuros(summary.totalHorasExtra),
             Number.isInteger(summary.totalFolgasTrabalhadas) ? `${summary.totalFolgasTrabalhadas}h` : `${summary.totalFolgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
@@ -444,6 +473,12 @@ export default function AdminRelatorios() {
             formatEuros(summary.totalHorasExtra + summary.totalFolgasTrabalhadas),
           ],
         ],
+      };
+    } else if (type === 'baixas') {
+      reportData = {
+        title: 'Relatório de Baixas Médicas', subtitle: exportSubtitle(monthLabel),
+        headers: ['Colaborador', 'Data Início', 'Data Fim', 'Dias no Mês', 'Observações'],
+        rows: medicalDetails.map(b => [b.nome, b.inicio, b.fim, b.dias, b.observacoes]),
       };
     } else if (type === 'ferias') {
       reportData = {
@@ -483,7 +518,7 @@ export default function AdminRelatorios() {
             Relatórios
           </h1>
           <p className="text-muted-foreground text-sm md:text-lg max-w-xl">
-            Análise detalhada de horas, férias e faltas da equipa
+            Análise detalhada de horas, férias, faltas e baixas médicas da equipa
           </p>
         </div>
       </div>
@@ -560,7 +595,7 @@ export default function AdminRelatorios() {
       </Card>
 
       {/* Summary Stats */}
-      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-6">
+      <div className="grid gap-3 md:gap-4 grid-cols-2 lg:grid-cols-4">
         <Card className="border-success/30 bg-success/5">
           <CardContent className="pt-4 pb-4">
             <div className="flex items-center gap-3">
@@ -646,9 +681,14 @@ export default function AdminRelatorios() {
         </Card>
       </div>
 
+      <Card><CardContent className="py-4 flex items-center gap-3">
+        <HeartPulse className="h-5 w-5 text-muted-foreground"/>
+        <div><p className="text-2xl font-bold">{summary.totalDiasBaixa}</p><p className="text-xs text-muted-foreground">Dias de baixa médica</p></div>
+      </CardContent></Card>
+
       {/* Detailed Reports Tabs */}
       <Tabs defaultValue="resumo" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
+        <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="resumo" className="gap-2">
             <TrendingUp className="h-4 w-4" />
             <span className={isMobile ? 'hidden' : ''}>Resumo</span>
@@ -661,6 +701,7 @@ export default function AdminRelatorios() {
             <FileText className="h-4 w-4" />
             <span className={isMobile ? 'hidden' : ''}>Faltas</span>
           </TabsTrigger>
+          <TabsTrigger value="baixas" aria-label="Baixas médicas" className="gap-2"><HeartPulse className="h-4 w-4"/><span className={isMobile ? 'hidden' : ''}>Baixas</span></TabsTrigger>
         </TabsList>
 
         {/* Resumo Tab */}
@@ -702,6 +743,7 @@ export default function AdminRelatorios() {
                         <TableHead className="text-center">Horas Trab.</TableHead>
                         <TableHead className="text-center">Férias</TableHead>
                         <TableHead className="text-center">Faltas</TableHead>
+                        <TableHead className="text-center">Baixas</TableHead>
                         <TableHead className="text-center">Horas Extra</TableHead>
                         <TableHead className="text-center">Valor HE</TableHead>
                         <TableHead className="text-center">Folgas/Feriados</TableHead>
@@ -728,6 +770,7 @@ export default function AdminRelatorios() {
                               <Badge variant="destructive">{report.diasFalta}</Badge>
                             ) : '-'}
                           </TableCell>
+                          <TableCell className="text-center">{report.diasBaixa || '-'}</TableCell>
                           <TableCell className="text-center">
                             {report.horasExtra > 0 ? (
                               <Badge className="bg-warning/20 text-warning">{report.horasExtra}h</Badge>
@@ -765,6 +808,7 @@ export default function AdminRelatorios() {
                             {Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ',')}
                           </TableCell>
                           <TableCell className="text-center">{summary.totalDiasFalta}</TableCell>
+                          <TableCell className="text-center">{summary.totalDiasBaixa}</TableCell>
                           <TableCell className="text-center">{summary.totalHorasExtra}h</TableCell>
                           <TableCell className="text-center">{formatEuros(summary.totalHorasExtra)}</TableCell>
                           <TableCell className="text-center">
@@ -776,7 +820,7 @@ export default function AdminRelatorios() {
                       )}
                       {monthlyReports.length === 0 && (
                         <TableRow>
-                          <TableCell colSpan={11} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={12} className="text-center text-muted-foreground py-8">
                             Nenhum dado encontrado para o período selecionado
                           </TableCell>
                         </TableRow>
@@ -921,6 +965,19 @@ export default function AdminRelatorios() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        <TabsContent value="baixas">
+          <Card><CardHeader><div className="flex flex-wrap items-center justify-between gap-3">
+            <CardTitle>Baixas Médicas Aprovadas</CardTitle>
+            <div className="flex gap-2"><Button variant="outline" size="sm" onClick={() => handleExportPDF('baixas')} disabled={!selectedEmployees.length}><Download className="h-4 w-4 mr-2"/>PDF</Button>
+            <Button variant="outline" size="sm" onClick={() => handleExportExcel('baixas')} disabled={!selectedEmployees.length}><FileSpreadsheet className="h-4 w-4 mr-2"/>Excel</Button></div>
+          </div></CardHeader><CardContent>
+            {loading ? <p className="py-8 text-muted-foreground">A carregar…</p> : <div className="overflow-x-auto"><Table>
+              <TableHeader><TableRow><TableHead>Colaborador</TableHead><TableHead>Início</TableHead><TableHead>Fim</TableHead><TableHead>Dias no mês</TableHead><TableHead>Observações</TableHead></TableRow></TableHeader>
+              <TableBody>{medicalDetails.map((b,i) => <TableRow key={i}><TableCell className="font-medium">{b.nome}</TableCell><TableCell>{b.inicio}</TableCell><TableCell>{b.fim}</TableCell><TableCell>{b.dias}</TableCell><TableCell className="max-w-xs break-words">{b.observacoes}</TableCell></TableRow>)}
+              {!medicalDetails.length && <TableRow><TableCell colSpan={5} className="py-8 text-center text-muted-foreground">Sem baixas médicas aprovadas neste período</TableCell></TableRow>}</TableBody>
+            </Table></div>}
+          </CardContent></Card>
         </TabsContent>
       </Tabs>
     </div>

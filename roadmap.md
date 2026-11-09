@@ -13,3 +13,9 @@
 - [x] Mostrar documentos a expirar no painel do gerente.
 - [x] Avisos por email (dias configuráveis por documento) para geral@nrtechsolucion.pt, página Avisos e paginação.
 - [x] Testar regras de validade e verificar os fluxos no ecrã.
+
+# Relatórios e tarefas
+- [x] Incluir baixas aprovadas no resumo mensal, detalhe e exportações PDF/Excel; dados reais e ficheiros verificados.
+- [x] Criar tarefas de gerente com início, lembretes de 2/7/15/30 dias e conclusão por email; criação, persistência, conclusão e eliminação verificadas.
+- [x] Ativar verificação diária às 09:17 UTC; callback autenticado e 17 testes verificados.
+- [ ] Confirmar envio dos emails de lembrete e conclusão: bloqueado por domínio remetente não verificado (NS ausentes); corrigir configuração em Mais → Emails.

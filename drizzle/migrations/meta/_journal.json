@@ -50,6 +50,13 @@
       "when": 1794046411598,
       "tag": "0006_allow_duration_only_agent_overtime",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794247134155,
+      "tag": "0007_manager_tasks",
+      "breakpoints": true
     }
   ]
 }
