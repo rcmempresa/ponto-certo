@@ -7,5 +7,5 @@
 - Clear subcategory assignments when changing the parent category and enforce parent consistency in the database to prevent mismatched document organization.
 - Derive dashboard expiry status from document dates on read; activate scheduled email delivery only after an owned sender domain is configured.
 - Keep folder navigation and document-list presentation in DocumentBrowser while mutations remain in the admin page; this separates browsing state from existing permissions and document actions.
-- Manage tasks through authenticated server checks: only the designated manager with an admin role creates/deletes; manager and assignee read/complete. Derive employee email from the assigned profile and send independent idempotent task events to manager and assignee.
+- Manage tasks through authenticated server checks: only the designated manager with an admin role creates/deletes; manager and assignee read/complete. The ponto-empregado agent endpoint enforces the same rules in code because its service-role client bypasses RLS. Derive employee email from the assigned profile and send independent idempotent task events to manager and assignee.
 - Count approved medical leave as inclusive calendar-day unions clipped to the selected report month; keep it separate from vacation and absence totals.

@@ -2,6 +2,7 @@ import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders as sdkCorsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { requestSchema } from './schema.ts';
 import { recentRequestCutoff, requestInsert, requestTables } from './requests.ts';
+import { normalizeLembretes, taskListSelect, withResponsavelNome, type TaskRow } from './tasks.ts';
 import { addDay, dailySummary, dayBoundary, getAgentSecret, localDay, pairedHours, teamPresence, validSecret } from './rules.ts';
 
 const corsHeaders = { ...sdkCorsHeaders, 'Access-Control-Allow-Headers': `${sdkCorsHeaders['Access-Control-Allow-Headers']}, x-agent-secret` };
@@ -47,6 +48,12 @@ Deno.serve(async req => {
       rows.push(...(data ?? []));
       if (!data || data.length < 1000) return rows;
     }
+  }
+  // The service-role client bypasses RLS, so task permissions are enforced here in code.
+  async function isAdmin(userId: string) {
+    const { data, error } = await db.from('user_roles').select('id').eq('user_id', userId).eq('role', 'admin').maybeSingle();
+    if (error) throw error;
+    return Boolean(data);
   }
   try {
     if ('params' in input && input.params && 'user_id' in input.params && ['criar_ferias', 'criar_falta', 'criar_horas_extra', 'criar_folga_trabalhada', 'ver_saldo_ferias', 'meus_pedidos'].includes(input.action)) {
@@ -109,6 +116,67 @@ Deno.serve(async req => {
         const { data, error } = await db.rpc('agent_decide_request', { p_tipo: tipo, p_id: id, p_status: status, p_motivo: motivo ?? null });
         if (error) throw error;
         return response({ data });
+      }
+      case 'listar_tarefas': {
+        const { user_id, incluir_concluidas } = input.params;
+        const admin = await isAdmin(user_id);
+        const rows: TaskRow[] = [];
+        for (let offset = 0; ; offset += 1000) {
+          let query = db.from('tarefas').select(taskListSelect).order('data_inicio').order('id').range(offset, offset + 999);
+          if (!incluir_concluidas) query = query.is('concluida_em', null);
+          if (!admin) query = query.eq('responsavel_id', user_id);
+          const { data, error } = await query;
+          if (error) throw error;
+          rows.push(...(data ?? []));
+          if (!data || data.length < 1000) break;
+        }
+        const names = new Map((await profiles()).map(person => [person.id, person.nome]));
+        return response({ data: rows.map(row => withResponsavelNome(row, names)) });
+      }
+      case 'criar_tarefa': {
+        const { user_id, titulo, descricao, data_inicio, responsavel_search, lembretes_dias } = input.params;
+        if (!await isAdmin(user_id)) return response({ error: 'Só o gerente pode criar tarefas' }, 403);
+        const { data: matches, error: searchError } = await db.from('profiles').select('id,nome').ilike('nome', `%${responsavel_search}%`).neq('id', user_id).order('nome').limit(10);
+        if (searchError) throw searchError;
+        if (!matches || matches.length === 0) return response({ error: 'Funcionário não encontrado' }, 404);
+        if (matches.length > 1) return response({ error: 'Nome ambíguo', nomes: matches.map(match => match.nome) }, 400);
+        const responsavel = matches[0];
+        const { data, error: insertError } = await db.from('tarefas')
+          .insert({ titulo, descricao: descricao ?? '', data_inicio, created_by: user_id, responsavel_id: responsavel.id, lembretes_dias: normalizeLembretes(lembretes_dias) })
+          .select('id,titulo,data_inicio,responsavel_id').single();
+        if (insertError) throw insertError;
+        return response({ data: { ...data, responsavel_nome: responsavel.nome } });
+      }
+      case 'concluir_tarefa': {
+        const { user_id, tarefa_id, tarefa_search } = input.params;
+        let tarefa: { id: string; titulo: string; responsavel_id: string | null } | null = null;
+        if (tarefa_id) {
+          const { data, error } = await db.from('tarefas').select('id,titulo,responsavel_id').eq('id', tarefa_id).maybeSingle();
+          if (error) throw error;
+          tarefa = data;
+        } else {
+          const { data, error } = await db.from('tarefas').select('id,titulo,responsavel_id').ilike('titulo', `%${tarefa_search}%`).is('concluida_em', null).order('data_inicio').limit(10);
+          if (error) throw error;
+          if (!data || data.length === 0) return response({ error: 'Tarefa não encontrada' }, 404);
+          if (data.length > 1) return response({ error: 'Ambíguo', tarefas: data.map(row => ({ id: row.id, titulo: row.titulo })) }, 400);
+          tarefa = data[0];
+        }
+        if (!tarefa) return response({ error: 'Tarefa não encontrada' }, 404);
+        if (tarefa.responsavel_id !== user_id && !await isAdmin(user_id)) return response({ error: 'Sem permissão para concluir esta tarefa' }, 403);
+        const { data, error: updateError } = await db.from('tarefas')
+          .update({ concluida_em: new Date().toISOString(), concluida_por: user_id })
+          .eq('id', tarefa.id).is('concluida_em', null)
+          .select('id,titulo,concluida_em').maybeSingle();
+        if (updateError) throw updateError;
+        if (!data) return response({ error: 'A tarefa já estava concluída' }, 409);
+        return response({ data });
+      }
+      case 'apagar_tarefa': {
+        const { user_id, tarefa_id } = input.params;
+        if (!await isAdmin(user_id)) return response({ error: 'Só o gerente pode apagar tarefas' }, 403);
+        const { error } = await db.from('tarefas').delete().eq('id', tarefa_id);
+        if (error) throw error;
+        return response({ deleted: true });
       }
     }
   } catch (error) {

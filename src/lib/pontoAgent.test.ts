@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { dailySummary, dayBoundary, getAgentSecret, pairedHours, presence, teamPresence, validSecret } from '../../supabase/functions/ponto-empregado/rules';
 import { requestSchema } from '../../supabase/functions/ponto-empregado/schema';
 import { recentRequestCutoff, requestInsert } from '../../supabase/functions/ponto-empregado/requests';
+import { normalizeLembretes, withResponsavelNome } from '../../supabase/functions/ponto-empregado/tasks';
 
 const punch = (tipo: 'entrada' | 'saida', timestamp: string) => ({ tipo, timestamp });
 describe('ponto-empregado contract', () => {
@@ -97,5 +98,44 @@ describe('ponto-empregado contract', () => {
     expect(await validSecret(null, 'test-only-value')).toBe(false);
     expect(await validSecret('wrong-test-value', 'test-only-value')).toBe(false);
     expect(await validSecret('test-only-value', 'test-only-value')).toBe(true);
+  });
+  it('lists tasks with concluded tasks excluded by default', () => {
+    const user_id = 'd40a054e-113c-4f57-b5bd-8bb74f6d198f';
+    const parsed = requestSchema.parse({ action: 'listar_tarefas', params: { user_id } });
+    expect(parsed.action === 'listar_tarefas' && parsed.params.incluir_concluidas).toBe(false);
+    expect(requestSchema.safeParse({ action: 'listar_tarefas', params: { user_id, incluir_concluidas: true } }).success).toBe(true);
+  });
+  it('creates tasks with a title of 1-200 chars and default reminders of 2 and 7 days', () => {
+    const user_id = 'd40a054e-113c-4f57-b5bd-8bb74f6d198f';
+    const base = { user_id, titulo: 'Enviar material', data_inicio: '2026-11-07', responsavel_search: 'Ana' };
+    const parsed = requestSchema.parse({ action: 'criar_tarefa', params: base });
+    expect(parsed.action === 'criar_tarefa' && parsed.params.lembretes_dias).toEqual([2, 7]);
+    expect(requestSchema.safeParse({ action: 'criar_tarefa', params: { ...base, titulo: '' } }).success).toBe(false);
+    expect(requestSchema.safeParse({ action: 'criar_tarefa', params: { ...base, titulo: 'a'.repeat(201) } }).success).toBe(false);
+    expect(requestSchema.safeParse({ action: 'criar_tarefa', params: { ...base, descricao: 'a'.repeat(2001) } }).success).toBe(false);
+  });
+  it('accepts only the reminder days 2, 7, 15 and 30, stored sorted without duplicates', () => {
+    const user_id = 'd40a054e-113c-4f57-b5bd-8bb74f6d198f';
+    const base = { user_id, titulo: 'Enviar material', data_inicio: '2026-11-07', responsavel_search: 'Ana' };
+    expect(requestSchema.safeParse({ action: 'criar_tarefa', params: { ...base, lembretes_dias: [2, 7, 15, 30] } }).success).toBe(true);
+    expect(requestSchema.safeParse({ action: 'criar_tarefa', params: { ...base, lembretes_dias: [3] } }).success).toBe(false);
+    expect(normalizeLembretes([30, 2, 7, 2])).toEqual([2, 7, 30]);
+  });
+  it('requires tarefa_id or tarefa_search to conclude a task', () => {
+    const user_id = 'd40a054e-113c-4f57-b5bd-8bb74f6d198f';
+    const tarefa_id = 'e50a054e-113c-4f57-b5bd-8bb74f6d198f';
+    expect(requestSchema.safeParse({ action: 'concluir_tarefa', params: { user_id } }).success).toBe(false);
+    expect(requestSchema.safeParse({ action: 'concluir_tarefa', params: { user_id, tarefa_id } }).success).toBe(true);
+    expect(requestSchema.safeParse({ action: 'concluir_tarefa', params: { user_id, tarefa_search: 'material' } }).success).toBe(true);
+  });
+  it('requires a task id to delete a task', () => {
+    const user_id = 'd40a054e-113c-4f57-b5bd-8bb74f6d198f';
+    expect(requestSchema.safeParse({ action: 'apagar_tarefa', params: { user_id, tarefa_id: 'e50a054e-113c-4f57-b5bd-8bb74f6d198f' } }).success).toBe(true);
+    expect(requestSchema.safeParse({ action: 'apagar_tarefa', params: { user_id } }).success).toBe(false);
+  });
+  it('fills the assignee name from the profiles map', () => {
+    const row = { id: 't1', titulo: 'Enviar material', descricao: '', data_inicio: '2026-11-07', responsavel_id: 'u1', concluida_em: null, created_at: '2026-11-01T00:00:00Z' };
+    expect(withResponsavelNome(row, new Map([['u1', 'Ana']])).responsavel_nome).toBe('Ana');
+    expect(withResponsavelNome({ ...row, responsavel_id: null }, new Map()).responsavel_nome).toBe('');
   });
 });
