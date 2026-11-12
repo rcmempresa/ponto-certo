@@ -56,7 +56,7 @@ Deno.serve(async req => {
     return Boolean(data);
   }
   try {
-    if ('params' in input && input.params && 'user_id' in input.params && ['criar_ferias', 'criar_falta', 'criar_horas_extra', 'criar_folga_trabalhada', 'ver_saldo_ferias', 'meus_pedidos'].includes(input.action)) {
+    if ('params' in input && input.params && 'user_id' in input.params && ['criar_ferias', 'criar_falta', 'criar_horas_extra', 'criar_folga_trabalhada', 'ver_saldo_ferias', 'meus_pedidos', 'submeter_baixa'].includes(input.action)) {
       const { data: profile, error } = await db.from('profiles').select('id,saldo_ferias,nome').eq('id', input.params.user_id).maybeSingle();
       if (error) throw error;
       if (!profile) return response({ error: 'Utilizador não encontrado' }, 404);
@@ -69,6 +69,39 @@ Deno.serve(async req => {
       }
     }
     switch (input.action) {
+      case 'minhas_baixas': {
+        const { data, error } = await db.from('baixas_medicas')
+          .select('id,data_inicio,data_fim,observacoes,status,created_at')
+          .eq('user_id', input.params.user_id).order('data_inicio', { ascending: false }).order('id').limit(20);
+        if (error) throw error;
+        return response({ data: data ?? [] });
+      }
+      case 'baixas_pendentes': {
+        // This administrative action is authenticated by AGENT_SECRET; the agent checks caller roles.
+        const names = new Map((await profiles()).map(person => [person.id, person.nome]));
+        const rows: Record<string, unknown>[] = [];
+        for (let offset = 0; ; offset += 1000) {
+          const { data, error } = await db.from('baixas_medicas')
+            .select('id,data_inicio,data_fim,observacoes,user_id').eq('status', 'pendente')
+            .order('created_at', { ascending: true }).order('id').range(offset, offset + 999);
+          if (error) throw error;
+          rows.push(...(data ?? []).map(row => ({ ...row, name: names.get(row.user_id) ?? '' })));
+          if (!data || data.length < 1000) break;
+        }
+        return response({ data: rows });
+      }
+      case 'aprovar_baixa': {
+        const { id, status } = input.params;
+        // One conditional update prevents concurrent decisions from overwriting each other.
+        // motivo is accepted by the contract; only status is changed, preserving employee observations.
+        const { data, error } = await db.from('baixas_medicas').update({ status })
+          .eq('id', id).eq('status', 'pendente').select('id,status,user_id').maybeSingle();
+        if (error) throw error;
+        if (!data) return response({ error: 'Baixa pendente não encontrada' }, 404);
+        const { data: profile, error: profileError } = await db.from('profiles').select('nome').eq('id', data.user_id).maybeSingle();
+        if (profileError) throw profileError;
+        return response({ data: { id: data.id, status: data.status, name: profile?.nome ?? '' } });
+      }
       case 'registar_ponto': {
         const { user_id, tipo, localizacao } = input.params;
         const { data, error } = await db.rpc('agent_register_punch', { p_user_id: user_id, p_tipo: tipo, p_localizacao: localizacao ?? null });

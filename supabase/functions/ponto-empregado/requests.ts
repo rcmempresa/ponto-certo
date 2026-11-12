@@ -9,6 +9,8 @@ export function recentRequestCutoff(now = new Date()): string {
 // Duration-only submissions never invent clock times or observations.
 export function requestInsert(input: AgentRequest) {
   switch (input.action) {
+    case 'submeter_baixa':
+      return { table: 'baixas_medicas', values: { ...input.params, status: 'pendente' }, select: 'id,data_inicio,data_fim' } as const;
     case 'criar_ferias':
       return { table: 'ferias', values: { ...input.params, status: 'pendente' }, select: 'id,data_inicio,data_fim' } as const;
     case 'criar_falta':

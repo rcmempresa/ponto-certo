@@ -9,6 +9,7 @@ describe('ponto-empregado contract', () => {
   const user_id = 'd40a054e-113c-4f57-b5bd-8bb74f6d198f';
   it.each([
     ['criar_ferias', { user_id, data_inicio: '2026-11-07', data_fim: '2026-11-08' }, 'ferias'],
+    ['submeter_baixa', { user_id, data_inicio: '2026-11-07', data_fim: '2026-11-08' }, 'baixas_medicas'],
     ['criar_falta', { user_id, data: '2026-11-07', motivo: 'Consulta' }, 'faltas'],
     ['criar_horas_extra', { user_id, data: '2026-11-07', minutos_extra: 1 }, 'horas_extra'],
     ['criar_folga_trabalhada', { user_id, data: '2026-11-07', horas: 4.5, tipo_dia: 'folga' }, 'folgas_trabalhadas'],
@@ -19,6 +20,39 @@ describe('ponto-empregado contract', () => {
   });
   it('limits absence reasons to 500 characters', () => {
     const parse = (motivo: string) => requestSchema.safeParse({ action: 'criar_falta', params: { user_id, data: '2026-11-07', motivo } }).success;
+    expect(parse('a'.repeat(500))).toBe(true);
+    expect(parse('a'.repeat(501))).toBe(false);
+  });
+  it('accepts same-day medical leave and rejects reversed or invalid dates', () => {
+    const parse = (data_inicio: string, data_fim: string) => requestSchema.safeParse({ action: 'submeter_baixa', params: { user_id, data_inicio, data_fim } }).success;
+    expect(parse('2026-11-12', '2026-11-12')).toBe(true);
+    expect(parse('2026-11-12', '2026-11-11')).toBe(false);
+    expect(parse('2026-02-30', '2026-03-01')).toBe(false);
+  });
+  it('limits medical observations to 500 characters and returns only submission fields', () => {
+    const params = { user_id, data_inicio: '2026-11-12', data_fim: '2026-11-13' };
+    const parsed = requestSchema.parse({ action: 'submeter_baixa', params: { ...params, observacoes: 'a'.repeat(500) } });
+    expect(requestInsert(parsed)?.select).toBe('id,data_inicio,data_fim');
+    expect(requestSchema.safeParse({ action: 'submeter_baixa', params: { ...params, observacoes: 'a'.repeat(501) } }).success).toBe(false);
+  });
+  it('requires a UUID for minhas_baixas', () => {
+    expect(requestSchema.safeParse({ action: 'minhas_baixas', params: { user_id } }).success).toBe(true);
+    expect(requestSchema.safeParse({ action: 'minhas_baixas', params: { user_id: 'invalid' } }).success).toBe(false);
+  });
+  it('accepts baixas_pendentes with no params or empty params only', () => {
+    expect(requestSchema.safeParse({ action: 'baixas_pendentes' }).success).toBe(true);
+    expect(requestSchema.safeParse({ action: 'baixas_pendentes', params: {} }).success).toBe(true);
+    expect(requestSchema.safeParse({ action: 'baixas_pendentes', params: { user_id } }).success).toBe(false);
+  });
+  it('allows only approved or rejected medical decisions with a UUID', () => {
+    const parse = (status: string, id = user_id) => requestSchema.safeParse({ action: 'aprovar_baixa', params: { id, status } }).success;
+    expect(parse('aprovado')).toBe(true);
+    expect(parse('rejeitado')).toBe(true);
+    expect(parse('pendente')).toBe(false);
+    expect(parse('aprovado', 'invalid')).toBe(false);
+  });
+  it('limits optional medical decision reasons to 500 characters', () => {
+    const parse = (motivo: string) => requestSchema.safeParse({ action: 'aprovar_baixa', params: { id: user_id, status: 'rejeitado', motivo } }).success;
     expect(parse('a'.repeat(500))).toBe(true);
     expect(parse('a'.repeat(501))).toBe(false);
   });

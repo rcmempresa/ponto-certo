@@ -1,4 +1,5 @@
 # Documentos
+- [x] Acrescentar quatro ações de baixas médicas no agente; 35 testes aprovados e submissão, consultas, aprovação/rejeição e erros 400/401/404 verificados com pedidos temporários removidos.
 - [x] Simplificar o arquivo documental com navegação por pastas, pesquisa e lista legível no telemóvel; pastas, subpastas, pesquisa, paginação e diálogo de renomear verificados com documentos reais; dez testes aprovados.
 - [x] Acrescentar seis ações de criação e consulta de pedidos ao agente; 22 testes aprovados, seis chamadas autenticadas verificadas e pedido de horas extra sem horário confirmado no painel.
 - [x] Completar e verificar criação, consulta, edição e eliminação de categorias e subcategorias em Gerir pastas; fluxo autenticado e nove testes aprovados.
