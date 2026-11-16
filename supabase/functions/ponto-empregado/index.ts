@@ -1,3 +1,4 @@
+import { notifyPontoWebhook } from '../_shared/ponto-webhook.ts';
 import { createClient } from 'npm:@supabase/supabase-js@2';
 import { corsHeaders as sdkCorsHeaders } from 'npm:@supabase/supabase-js@2/cors';
 import { requestSchema } from './schema.ts';
@@ -106,6 +107,8 @@ Deno.serve(async req => {
         const { user_id, tipo, localizacao } = input.params;
         const { data, error } = await db.rpc('agent_register_punch', { p_user_id: user_id, p_tipo: tipo, p_localizacao: localizacao ?? null });
         if (error) throw error;
+        const { data: person } = await db.from('profiles').select('nome, email').eq('id', user_id).maybeSingle();
+        await notifyPontoWebhook('ponto', { nome: person?.nome || person?.email || '', user_id, tipo, timestamp: data.timestamp });
         const hours = tipo === 'saida' ? pairedHours(await punches(localDay(data.timestamp), localDay(data.timestamp), user_id)) : undefined;
         return response({ data: { timestamp: data.timestamp, ...(hours !== undefined ? { horas_hoje: hours } : {}) } });
       }

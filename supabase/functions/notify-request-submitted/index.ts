@@ -1,6 +1,7 @@
 import { corsHeaders } from 'npm:@supabase/supabase-js@2/cors'
 import { createClient } from 'npm:@supabase/supabase-js@2'
 import { z } from 'npm:zod@3.25.76'
+import { notifyPontoWebhook } from '../_shared/ponto-webhook.ts'
 import { sendTemplateEmail } from '../_shared/transactional-email-templates/send-email.ts'
 
 const Body = z.object({ tipo: z.enum(['ferias', 'falta', 'baixa']), id: z.string().uuid() })
@@ -63,6 +64,8 @@ Deno.serve(async (req) => {
       : 'Dia inteiro'
     templateData = { tipo, nome, periodo: pt(row.data), detalhe, motivo: row.motivo, anexoUrl }
   }
+
+  await notifyPontoWebhook(table, { ...row, nome, user_id: row.user_id, status: 'pendente' })
 
   try {
     const result = await sendTemplateEmail('request-submitted', 'geral@nrtechsolucion.pt', {
