@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { formatHours } from '@/lib/formatHours';
 import { 
   FileText, 
   Download, 
@@ -385,11 +386,11 @@ export default function AdminRelatorios() {
             r.nome,
             r.cargo || '-',
             r.diasTrabalhados,
-            r.horasTrabalhadas,
+            formatHours(r.horasTrabalhadas),
             Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
             r.diasFalta,
             r.diasBaixa,
-            r.horasExtra,
+            formatHours(r.horasExtra),
             formatEuros(r.horasExtra),
             Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
             formatEuros(r.folgasTrabalhadas),
@@ -398,11 +399,11 @@ export default function AdminRelatorios() {
           [
             'TOTAL', '',
             summary.totalDiasTrabalhados,
-            summary.totalHorasTrabalhadas,
+            formatHours(summary.totalHorasTrabalhadas),
             Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ','),
             summary.totalDiasFalta,
             summary.totalDiasBaixa,
-            summary.totalHorasExtra,
+            formatHours(summary.totalHorasExtra),
             formatEuros(summary.totalHorasExtra),
             Number.isInteger(summary.totalFolgasTrabalhadas) ? `${summary.totalFolgasTrabalhadas}h` : `${summary.totalFolgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
             formatEuros(summary.totalFolgasTrabalhadas),
@@ -449,11 +450,11 @@ export default function AdminRelatorios() {
             r.nome,
             r.cargo || '-',
             r.diasTrabalhados,
-            r.horasTrabalhadas,
+            formatHours(r.horasTrabalhadas),
             Number.isInteger(r.diasFerias) ? r.diasFerias : r.diasFerias.toFixed(1).replace('.', ','),
             r.diasFalta,
             r.diasBaixa,
-            r.horasExtra,
+            formatHours(r.horasExtra),
             formatEuros(r.horasExtra),
             Number.isInteger(r.folgasTrabalhadas) ? `${r.folgasTrabalhadas}h` : `${r.folgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
             formatEuros(r.folgasTrabalhadas),
@@ -462,11 +463,11 @@ export default function AdminRelatorios() {
           [
             'TOTAL', '',
             summary.totalDiasTrabalhados,
-            summary.totalHorasTrabalhadas,
+            formatHours(summary.totalHorasTrabalhadas),
             Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ','),
             summary.totalDiasFalta,
             summary.totalDiasBaixa,
-            summary.totalHorasExtra,
+            formatHours(summary.totalHorasExtra),
             formatEuros(summary.totalHorasExtra),
             Number.isInteger(summary.totalFolgasTrabalhadas) ? `${summary.totalFolgasTrabalhadas}h` : `${summary.totalFolgasTrabalhadas.toFixed(1).replace('.', ',')}h`,
             formatEuros(summary.totalFolgasTrabalhadas),
@@ -617,7 +618,7 @@ export default function AdminRelatorios() {
                 <Clock className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{summary.totalHorasTrabalhadas}h</p>
+                <p className="text-2xl font-bold">{formatHours(summary.totalHorasTrabalhadas)}</p>
                 <p className="text-xs text-muted-foreground">Horas Trabalhadas</p>
               </div>
             </div>
@@ -659,7 +660,7 @@ export default function AdminRelatorios() {
                 <Timer className="h-5 w-5 text-warning" />
               </div>
               <div>
-                <p className="text-2xl font-bold">{summary.totalHorasExtra}h</p>
+                <p className="text-2xl font-bold">{formatHours(summary.totalHorasExtra)}</p>
                 <p className="text-xs text-muted-foreground">Horas Extra</p>
               </div>
             </div>
@@ -759,7 +760,7 @@ export default function AdminRelatorios() {
                             {report.cargo || '-'}
                           </TableCell>
                           <TableCell className="text-center">{report.diasTrabalhados}</TableCell>
-                          <TableCell className="text-center">{report.horasTrabalhadas}h</TableCell>
+                          <TableCell className="text-center">{formatHours(report.horasTrabalhadas)}</TableCell>
                           <TableCell className="text-center">
                             {report.diasFerias > 0 ? (
                               <Badge variant="secondary">{Number.isInteger(report.diasFerias) ? report.diasFerias : report.diasFerias.toFixed(1).replace('.', ',')}</Badge>
@@ -773,7 +774,7 @@ export default function AdminRelatorios() {
                           <TableCell className="text-center">{report.diasBaixa || '-'}</TableCell>
                           <TableCell className="text-center">
                             {report.horasExtra > 0 ? (
-                              <Badge className="bg-warning/20 text-warning">{report.horasExtra}h</Badge>
+                              <Badge className="bg-warning/20 text-warning">{formatHours(report.horasExtra)}</Badge>
                             ) : '-'}
                           </TableCell>
                           <TableCell className="text-center text-sm text-muted-foreground">
@@ -803,13 +804,13 @@ export default function AdminRelatorios() {
                           <TableCell>TOTAL</TableCell>
                           <TableCell className="hidden sm:table-cell" />
                           <TableCell className="text-center">{summary.totalDiasTrabalhados}</TableCell>
-                          <TableCell className="text-center">{summary.totalHorasTrabalhadas}h</TableCell>
+                          <TableCell className="text-center">{formatHours(summary.totalHorasTrabalhadas)}</TableCell>
                           <TableCell className="text-center">
                             {Number.isInteger(summary.totalDiasFerias) ? summary.totalDiasFerias : summary.totalDiasFerias.toFixed(1).replace('.', ',')}
                           </TableCell>
                           <TableCell className="text-center">{summary.totalDiasFalta}</TableCell>
                           <TableCell className="text-center">{summary.totalDiasBaixa}</TableCell>
-                          <TableCell className="text-center">{summary.totalHorasExtra}h</TableCell>
+                          <TableCell className="text-center">{formatHours(summary.totalHorasExtra)}</TableCell>
                           <TableCell className="text-center">{formatEuros(summary.totalHorasExtra)}</TableCell>
                           <TableCell className="text-center">
                             {Number.isInteger(summary.totalFolgasTrabalhadas) ? `${summary.totalFolgasTrabalhadas}h` : `${summary.totalFolgasTrabalhadas.toFixed(1).replace('.', ',')}h`}
