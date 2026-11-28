@@ -71,6 +71,13 @@
       "when": 1794845294825,
       "tag": "0009_tighten_open_policies",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795891569267,
+      "tag": "0010_create_admin_activity_logs",
+      "breakpoints": true
     }
   ]
 }

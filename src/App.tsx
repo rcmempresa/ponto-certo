@@ -26,6 +26,7 @@ import AdminFolgasTrabalhadas from "./pages/admin/AdminFolgasTrabalhadas";
 import AdminFerias from "./pages/admin/AdminFerias";
 import AdminTarefas from "./pages/admin/AdminTarefas";
 import AdminRelatorios from "./pages/admin/AdminRelatorios";
+import AdminAtividade from "./pages/admin/AdminAtividade";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -137,6 +138,14 @@ const App = () => (
                 element={
                   <ProtectedRoute requireAdmin>
                     <AdminRelatorios />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/admin/atividade"
+                element={
+                  <ProtectedRoute requireAdmin>
+                    <AdminAtividade />
                   </ProtectedRoute>
                 }
               />

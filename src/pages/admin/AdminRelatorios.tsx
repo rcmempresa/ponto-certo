@@ -36,6 +36,7 @@ import { calculateWorkHours } from '@/lib/workHoursCalculator';
 import { exportToPDF, exportToExcel, ReportData } from '@/lib/exportUtils';
 import { sickLeaveMonthDays } from '@/lib/sickLeaveReport';
 import { isHoliday } from '@/lib/holidays';
+import { logAdminActivity } from '@/lib/logAdminActivity';
 
 interface Profile {
   id: string;
@@ -434,6 +435,12 @@ export default function AdminRelatorios() {
     }
 
     exportToPDF(reportData, `relatorio-${type}-${selectedMonth}`);
+    void logAdminActivity({
+      acao: 'exportou',
+      entidade: 'relatorios',
+      descricao: `exportou o relatório de ${type} em PDF (${selectedMonth}).`,
+      detalhes: { formato: 'PDF', relatorio: type, mes: selectedMonth, colaboradores: employeeLabel },
+    });
   };
 
   const handleExportExcel = (type: 'resumo' | 'ferias' | 'faltas' | 'baixas') => {
@@ -496,6 +503,12 @@ export default function AdminRelatorios() {
     }
 
     exportToExcel(reportData, `relatorio-${type}-${selectedMonth}`);
+    void logAdminActivity({
+      acao: 'exportou',
+      entidade: 'relatorios',
+      descricao: `exportou o relatório de ${type} em Excel (${selectedMonth}).`,
+      detalhes: { formato: 'Excel', relatorio: type, mes: selectedMonth, colaboradores: employeeLabel },
+    });
   };
 
   return (

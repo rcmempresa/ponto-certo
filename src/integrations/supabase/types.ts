@@ -14,6 +14,45 @@ export type Database = {
   }
   public: {
     Tables: {
+      admin_activity_logs: {
+        Row: {
+          acao: string
+          actor_email: string | null
+          actor_id: string | null
+          actor_nome: string
+          created_at: string
+          descricao: string
+          detalhes: Json
+          entidade: string
+          id: string
+          registo_id: string | null
+        }
+        Insert: {
+          acao: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_nome?: string
+          created_at?: string
+          descricao: string
+          detalhes?: Json
+          entidade: string
+          id?: string
+          registo_id?: string | null
+        }
+        Update: {
+          acao?: string
+          actor_email?: string | null
+          actor_id?: string | null
+          actor_nome?: string
+          created_at?: string
+          descricao?: string
+          detalhes?: Json
+          entidade?: string
+          id?: string
+          registo_id?: string | null
+        }
+        Relationships: []
+      }
       baixas_medicas: {
         Row: {
           comprovativo_url: string | null
@@ -540,6 +579,17 @@ export type Database = {
         Returns: Json
       }
       is_admin: { Args: { _user_id?: string }; Returns: boolean }
+      registar_atividade_admin: {
+        Args: {
+          p_acao: string
+          p_actor_id?: string
+          p_descricao: string
+          p_detalhes?: Json
+          p_entidade: string
+          p_registo_id?: string
+        }
+        Returns: string
+      }
       rename_document_category: {
         Args: { new_name: string; old_name: string }
         Returns: undefined

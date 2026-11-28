@@ -35,6 +35,7 @@ import {
 } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { logAdminActivity } from '@/lib/logAdminActivity';
 
 interface Profile {
   id: string;
@@ -366,6 +367,13 @@ export default function AdminEquipa() {
                     className="flex-1 rounded-xl border-border/50 hover:bg-primary/5 hover:text-primary hover:border-primary/30 transition-all"
                     onClick={async () => {
                       await startImpersonation(profile.id);
+                      await logAdminActivity({
+                        acao: 'visualizou',
+                        entidade: 'painel_colaborador',
+                        registo_id: profile.id,
+                        descricao: `visualizou o painel do colaborador ${profile.nome || profile.email}.`,
+                        detalhes: { colaboradores: profile.nome || profile.email },
+                      });
                       navigate('/dashboard');
                     }}
                   >

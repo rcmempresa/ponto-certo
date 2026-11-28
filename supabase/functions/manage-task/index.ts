@@ -24,22 +24,30 @@ Deno.serve(async req => {
  const {data:role,error:roleError}=await client.from('user_roles').select('role').eq('user_id',auth.user.id).eq('role','admin').maybeSingle();
  if(roleError) return reply({error:'Não foi possível confirmar permissões'},500);
  const manager=isTaskManager(auth.user.email, Boolean(role));
+ const audit=async(acao:'criou'|'concluiu'|'eliminou',descricao:string,registoId:string)=>{
+  try {
+   await client.rpc('registar_atividade_admin',{p_acao:acao,p_entidade:'tarefas',p_descricao:descricao,p_registo_id:registoId,p_actor_id:auth.user.id});
+  } catch { /* O histórico não pode impedir a ação principal. */ }
+ };
  const parsed=schema.safeParse(await req.json());
  if(!parsed.success) return reply({error:'Dados da tarefa inválidos'},400);
  const input=parsed.data;
  if(input.action!=='complete' && !manager) return reply({error:'Só o gerente pode criar ou eliminar tarefas'},403);
  if(input.action==='create') {
- const {data:employee,error:employeeError}=await client.from('profiles').select('id,email').eq('id',input.responsavel_id).single();
+ const {data:employee,error:employeeError}=await client.from('profiles').select('id,nome,email').eq('id',input.responsavel_id).single();
  if(employeeError || !employee) return reply({error:'Funcionário não encontrado'},400);
  if(employee.email.toLowerCase()==='geral@nrtechsolucion.pt') return reply({error:'Escolha um funcionário responsável'},400);
  const {action,...fields}=input;
  const {data,error}=await client.from('tarefas').insert({...fields,lembretes_dias:[...new Set(fields.lembretes_dias)].sort((a,b)=>a-b),created_by:auth.user.id}).select('*').single();
  if(error) throw error;
+ await audit('criou',`criou a tarefa "${data.titulo}" para ${employee.nome || employee.email}.`,data.id);
  return reply({data});
  }
  if(input.action==='delete') {
+ const {data:existingTask}=await client.from('tarefas').select('titulo').eq('id',input.id).maybeSingle();
  const {error}=await client.from('tarefas').delete().eq('id',input.id);
  if(error) throw error;
+ await audit('eliminou',`eliminou a tarefa "${existingTask?.titulo || input.id}".`,input.id);
  return reply({deleted:true});
  }
  const {data:existing,error:existingError}=await client.from('tarefas').select('responsavel_id').eq('id',input.id).single();
@@ -60,6 +68,7 @@ Deno.serve(async req => {
    if(saveError) throw saveError;
   } catch { email='pendente'; }
  }
+ if(manager) await audit('concluiu',`concluiu a tarefa "${task.titulo}".`,task.id);
  return reply({data:{...task,conclusao_email_estado:email},email});
  } catch { return reply({error:'Não foi possível guardar a tarefa'},500); }
 });
