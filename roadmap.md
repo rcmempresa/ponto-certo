@@ -1,3 +1,7 @@
+# Atividade do gerente
+- [ ] Registar automaticamente alterações administrativas, tarefas, exportações e acesso ao painel de colaboradores.
+- [ ] Criar página protegida com pesquisa, filtros e paginação; verificar um fluxo real e remover dados temporários.
+
 # Documentos
 - [x] Acrescentar quatro ações de baixas médicas no agente; 35 testes aprovados e submissão, consultas, aprovação/rejeição e erros 400/401/404 verificados com pedidos temporários removidos.
 - [x] Simplificar o arquivo documental com navegação por pastas, pesquisa e lista legível no telemóvel; pastas, subpastas, pesquisa, paginação e diálogo de renomear verificados com documentos reais; dez testes aprovados.
