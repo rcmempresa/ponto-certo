@@ -114,8 +114,8 @@ export default function AdminAtividade() {
                     <div className="min-w-0 flex-1 space-y-2">
                       <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
-                          <h2 className="font-medium capitalize break-words">{log.descricao}</h2>
-                          <p className="mt-1 text-sm text-muted-foreground break-words">{log.actor_nome}{log.actor_email ? ` · ${log.actor_email}` : ''}</p>
+                          <h2 className="font-medium break-words first-letter:uppercase">{log.descricao}</h2>
+                          <p className="mt-1 text-sm text-muted-foreground break-words">{log.actor_nome}{log.actor_email && log.actor_email !== log.actor_nome ? ` · ${log.actor_email}` : ''}</p>
                         </div>
                         <time className="shrink-0 text-xs text-muted-foreground" dateTime={log.created_at}>{formatActivityDate(log.created_at)}</time>
                       </div>
